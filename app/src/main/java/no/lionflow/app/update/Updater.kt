@@ -103,7 +103,11 @@ object Updater {
         val pm = ctx.packageManager
         return try {
             if (Build.VERSION.SDK_INT >= 28) {
-                val a = pm.getPackageArchiveInfo(apk.path, PackageManager.GET_SIGNING_CERTIFICATES) ?: return false
+                // Android 9/10 only collect an archive's certificates when GET_SIGNATURES is set;
+                // with GET_SIGNING_CERTIFICATES alone signingInfo stays null (fixed in Android 11).
+                val flags = PackageManager.GET_SIGNING_CERTIFICATES or
+                    (if (Build.VERSION.SDK_INT < 30) PackageManager.GET_SIGNATURES else 0)
+                val a = pm.getPackageArchiveInfo(apk.path, flags) ?: return false
                 if (a.packageName != ctx.packageName) return false
                 val mine = pm.getPackageInfo(ctx.packageName, PackageManager.GET_SIGNING_CERTIFICATES).signingInfo?.apkContentsSigners ?: return false
                 val theirs = a.signingInfo?.apkContentsSigners ?: return false
