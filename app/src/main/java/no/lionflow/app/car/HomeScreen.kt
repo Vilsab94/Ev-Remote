@@ -122,9 +122,9 @@ internal class HomeScreen(ctx: CarContext, ui: CarUi) : DrawnScreen(ctx, ui) {
 
         val tiles = ArrayList<HomeModel.Tile>()
         // Planning is about the battery: not for cars that only burn fuel.
-        if (!fuelOnly) tiles += HomeModel.Tile("plan", tr("Plan a trip"), tr("Battery % on arrival"), R.drawable.ic_car_search, true)
+        if (!fuelOnly) tiles += HomeModel.Tile("plan", tr("Plan a trip"), tr("Battery % on arrival"), R.drawable.ic_car_search)
         tiles += HomeModel.Tile("chargers", tr(if (fuelOnly) "Fuel stations" else if (st?.energyType == "Hybrid") "Chargers & fuel" else "Chargers"), tr("Nearest first"),
-            if (fuelOnly) R.drawable.ic_car_fuel else R.drawable.ic_car_charger, fuelOnly)
+            if (fuelOnly) R.drawable.ic_car_fuel else R.drawable.ic_car_charger)
         val saved = if (SavedRoutes.fromPlay(carContext)) SavedRoutes.all(carContext) else emptyList()
         if (saved.isNotEmpty()) tiles += HomeModel.Tile("saved", tr("Saved routes"), if (saved.size == 1) saved[0].name else tr("${saved.size} routes"), R.drawable.ic_car_route)
         val trips = CarHub.trips.value

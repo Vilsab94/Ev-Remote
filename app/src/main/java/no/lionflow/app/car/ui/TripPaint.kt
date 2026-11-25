@@ -94,16 +94,20 @@ object TripPaint {
         val wide = body.width() >= body.height() * 1.15f
         val card: RectF; val map: RectF
         if (wide) {
+            // The full height: the title and back button go into the card, and Android Auto's buttons float over the
+            // top of the map.
+            val top = 2.6f * u
             val cw = (body.width() * 0.36f).coerceIn(56f * u, 74f * u)
-            card = RectF(body.left, body.top, body.left + cw, body.bottom)
-            map = RectF(card.right + gap, body.top, body.right, body.bottom)
+            card = RectF(body.left, top, body.left + cw, body.bottom)
+            map = RectF(card.right + gap, top, body.right, body.bottom)
         } else {
             card = RectF(body.left, body.top, body.right, body.top + 36f * u)
             map = RectF(body.left, card.bottom + gap, body.right, body.bottom)
         }
         val panel = RectF(map.left + 2.2f * u, map.bottom - 13.6f * u, map.right - 2.2f * u, map.bottom - 2.2f * u)
         // The route keeps clear of the edges (labels sit above and below its marks) and of the line at the bottom.
-        val route = RectF(map.left + 9f * u, map.top + 11f * u, map.right - 9f * u, panel.top - 8.5f * u)
+        // (and below the band where Android Auto's buttons sit).
+        val route = RectF(map.left + 9f * u, max(map.top + 11f * u, k.st.header.bottom + 5f * u), map.right - 9f * u, panel.top - 8.5f * u)
         if (route.width() < 10f * u) { route.left = map.left + 3f * u; route.right = map.right - 3f * u }
         if (route.height() < 10f * u) { route.top = map.top + 4f * u; route.bottom = max(route.top + 2f * u, panel.top - 3f * u) }
         return TripLayout(card, map, route, panel, !wide)
@@ -115,12 +119,14 @@ object TripPaint {
     fun draw(c: Canvas, k: Kit, m: TripModel, pressed: String?, hits: MutableList<Hit>) {
         val u = k.u; val pal = k.pal
         c.drawColor(pal.bg)
-        k.header(c, m.title, m.status, true, pressed, hits, m.statusTone)
         val body = k.st.body
+        val ready = m.state == TripModel.READY && m.lat.size >= 2
+        val l = if (ready && body.width() >= 20f * u && body.height() >= 14f * u) layout(k) else null
+        // Laid out side by side, the title is in the card; otherwise in the band at the top.
+        if (l == null || l.sideways) k.header(c, m.title, m.status, true, pressed, hits, m.statusTone)
         if (body.width() < 20f * u || body.height() < 14f * u) return
-        if (m.state != TripModel.READY || m.lat.size < 2) { waiting(c, k, body, m, pressed, hits); return }
-        val l = layout(k)
-        if (l.sideways) cardSideways(c, k, l.card, m) else card(c, k, l.card, m)
+        if (l == null) { waiting(c, k, body, m, pressed, hits); return }
+        if (l.sideways) cardSideways(c, k, l.card, m) else card(c, k, l.card, m, pressed, hits)
         map(c, k, l, m)
     }
 
@@ -202,9 +208,23 @@ object TripPaint {
         }
     }
 
-    private fun card(c: Canvas, k: Kit, r: RectF, m: TripModel) {
+    private fun card(c: Canvas, k: Kit, whole: RectF, m: TripModel, pressed: String?, hits: MutableList<Hit>) {
         val u = k.u; val pal = k.pal
-        k.card(c, r, 3.6f * u)
+        k.card(c, whole, 3.6f * u)
+        // At the top of the card: back, the destination and how fresh the car's numbers are.
+        val br = 4.4f * u
+        val bx = whole.left + 3f * u + br; val by = whole.top + 3f * u + br
+        c.drawCircle(bx, by, br, k.fill(if (pressed == "back") k.pressedFill(pal.raised) else pal.raised))
+        k.chevron(c, bx - 0.12f * br, by, br * 0.92f, 1, pal.text, max(2f, 0.6f * u))
+        hits += Hit(RectF(whole.left, whole.top, bx + br + 3f * u, by + br + 3f * u), "back")
+        val tx = bx + br + 2.6f * u; val titleRoom = whole.right - 3.2f * u - tx
+        val tp = k.text(5.4f, pal.text, Kit.bold)
+        c.drawText(k.fit(m.title, tp, titleRoom, 0.72f), tx, by + 0.4f * u, tp)
+        if (m.status.isNotBlank()) {
+            val sp = k.text(3.3f, k.tone(m.statusTone), Kit.medium)
+            c.drawText(k.ellipsize(m.status, sp, titleRoom), tx, by + 4.9f * u, sp)
+        }
+        val r = RectF(whole.left, by + br + 1.2f * u, whole.right, whole.bottom)
         val pad = 3.6f * u
         val left = r.left + pad; val right = r.right - pad
         val hasEta = m.eta.isNotEmpty()
