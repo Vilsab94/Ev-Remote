@@ -120,7 +120,9 @@ fun SettingsScreen(vm: AppViewModel, ui: UiState, s: AppSettings) {
                     }
                 }
             }
-            if (!vm.isDemo) ui.vehicle?.let { vehicle ->
+            // Not for a car that is plainly electric (e-5008, ë-C3 …), unless it was set by hand.
+            val plainElectric = ui.vehicle?.let { v -> vm.vehicleKind(v) == "Electric" || ui.status?.let { it.energyType == "Electric" && it.fuelPct == null } == true } == true
+            if (!vm.isDemo && !(plainElectric && ui.vehicle?.let { vm.settings.mildHybridOverride(it.vin) } == null)) ui.vehicle?.let { vehicle ->
                 var override by remember(vehicle.vin) { mutableStateOf(vm.settings.mildHybridOverride(vehicle.vin)) }
                 val detection = vehicle.mildHybridDetection
                 val result = when (detection) {
@@ -265,8 +267,7 @@ fun SettingsScreen(vm: AppViewModel, ui: UiState, s: AppSettings) {
 
         SectionTitle("Android Auto")
         GroupCard {
-            ToggleRow("YouTube in the car (parked only)", "Opens only when the car reports standing still (or GPS shows no movement), and closes the moment the car moves", s.carVideo) { v -> set { it.copy(carVideo = v) } }
-            ToggleRow("Line up YouTube picture with the car's sound", "Android Auto plays sound a little late. This holds the picture back by about 0.4 seconds so they match. Turn it off if playback looks choppy", s.carVideoSync) { v -> set { it.copy(carVideoSync = v) } }
+            ToggleRow("Line up the video picture with the car's sound", "YouTube and NRK in the car. Android Auto plays sound a little late. This holds the picture back by about 0.4 seconds so they match. Turn it off if playback looks choppy", s.carVideoSync) { v -> set { it.copy(carVideoSync = v) } }
             ToggleRow("Plain lists in the car", "For cars whose screen can't be touched (a dial or a touchpad instead). Android Auto's own tiles and lists are shown in place of the screens LionFlow draws. Takes effect the next time the car connects", s.carPlain, showDivider = false) { v -> set { it.copy(carPlain = v) } }
         }
         Text(

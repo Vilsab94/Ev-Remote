@@ -195,10 +195,10 @@ internal class OverviewScreen(ctx: CarContext, private val ui: CarUi) : LiveScre
         val s = app.settings.value
         val st = CarHub.status.value
         // The strip holds at most two buttons, icons only. With YouTube and NRK TV both there, updating is on the doors tile.
-        val nrk = s.carVideo && Where.inNorway(carContext)
+        val nrk = Where.inNorway(carContext)
         val strip = ActionStrip.Builder()
         if (!nrk) strip.addAction(Action.Builder().setIcon(carContext.icon(R.drawable.ic_car_refresh)).setOnClickListener { refreshAll() }.build())
-        if (s.carVideo) strip.addAction(Action.Builder().setIcon(carContext.icon(R.drawable.ic_car_play, CarColor.RED)).setOnClickListener {
+        strip.addAction(Action.Builder().setIcon(carContext.icon(R.drawable.ic_car_play, CarColor.RED)).setOnClickListener {
             guard.update()
             if (guard.parked.value) screenManager.push(YouTubeScreen(carContext, ui))
             else CarToast.makeText(carContext, tr(guard.reason), CarToast.LENGTH_LONG).show()

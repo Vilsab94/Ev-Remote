@@ -90,13 +90,12 @@ internal class HomeScreen(ctx: CarContext, ui: CarUi) : DrawnScreen(ctx, ui) {
 
     override fun buttons(): List<Btn> {
         val pal = CarTheme.refresh(carContext)
-        val s = CarHub.app(carContext).settings.value
         val out = ArrayList<Btn>()
         // Sun in the dark look (switch to light), moon in the light look.
         out += Btn(if (pal.dark) R.drawable.ic_car_sun else R.drawable.ic_car_moon) { CarTheme.toggle(carContext); invalidate(); redraw() }
         out += Btn(R.drawable.ic_car_refresh) { CarHub.refresh(carContext, force = true); CarHub.loadTrips(carContext, force = true) }
-        if (s.carVideo) out += Btn(R.drawable.ic_car_play, tint = CarColor.RED) { openVideo(VideoSite.YouTube) }
-        if (s.carVideo && Where.inNorway(carContext)) out += Btn(custom = nrkBadge()) { openVideo(VideoSite.NrkTv) }
+        out += Btn(R.drawable.ic_car_play, tint = CarColor.RED) { openVideo(VideoSite.YouTube) }
+        if (Where.inNorway(carContext)) out += Btn(custom = nrkBadge()) { openVideo(VideoSite.NrkTv) }
         return out
     }
 

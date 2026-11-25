@@ -435,7 +435,14 @@ internal class YouTubeScreen(ctx: CarContext, private val ui: CarUi, private val
                 v.addEventListener('playing', function() { frame(v); });
                 if (!v.paused) frame(v);
               }
-              setInterval(function() { var v = document.querySelector('video'); if (v) attach(v); }, 1000);
+              // The video may sit inside a web component (NRK's player does that): look in shadow roots too.
+              function find(root) {
+                var v = root.querySelector('video'); if (v) return v;
+                var all = root.querySelectorAll('*');
+                for (var i = 0; i < all.length; i++) if (all[i].shadowRoot) { v = find(all[i].shadowRoot); if (v) return v; }
+                return null;
+              }
+              setInterval(function() { var v = find(document); if (v) attach(v); }, 1000);
             })(__DELAY__);
         """.trimIndent()
 
