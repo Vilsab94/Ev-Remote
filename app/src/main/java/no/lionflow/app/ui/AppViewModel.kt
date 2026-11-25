@@ -881,12 +881,24 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun setChargeWindow(on: Boolean, from: Int, to: Int) {
         val status = _ui.value.status ?: return
         if (!Caps.battery(status)) return
+        val was = settings.value
         settings.update { it.copy(chargeWindowOn = on, chargeWindowFrom = from, chargeWindowTo = to) }
         if (isDemo) return
+        // Times changed while the window is off: nothing to tell the car (sending would set its scheduled start).
+        if (!on && !was.chargeWindowOn) return
         viewModelScope.launch {
             val r = no.lionflow.app.work.ChargeWindow.applyToCar(getApplication())
             if (r is CommandResult.Failed) toast(no.lionflow.app.ui.l10n.L10n.tr("Couldn't send the charging times to the car") + ": " + r.reason)
         }
+    }
+
+    /**
+     * Turns off the car's scheduled (delayed) start, so it charges as soon as it is plugged in. "Stop charging" (also
+     * from the charge limit or charging times) works by setting that scheduled start, so it can stay on afterwards.
+     */
+    fun clearScheduledStart() = runCommand("Turn off scheduled start") { p ->
+        val st = _ui.value.status
+        remote.charging(true, st?.nextDelayedHour ?: 1, st?.nextDelayedMinute ?: 0, p)
     }
 
     fun wakeUp() = runCommand("Wake car") { p -> remote.wakeUp(p) }

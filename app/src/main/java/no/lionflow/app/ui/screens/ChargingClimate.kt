@@ -87,7 +87,11 @@ fun ChargingScreen(vm: AppViewModel, ui: UiState, s: AppSettings, wide: Boolean)
             Divider()
             DetailRow("Type", when (st?.chargingMode) { "Quick" -> "Fast (DC)"; "Slow" -> "AC"; else -> "—" })
             Divider()
-            DetailRow("Scheduled start", st?.nextDelayedHour?.let { no.lionflow.app.ui.l10n.TimeFmt.hm(it, st?.nextDelayedMinute ?: 0) } ?: "Not set")
+            DetailRow("Scheduled start", st?.nextDelayedHour?.let { no.lionflow.app.ui.l10n.TimeFmt.hm(it, st?.nextDelayedMinute ?: 0) } ?: "Not set",
+                // The car waits for this time; turned off here unless LionFlow's own charging times use it.
+                action = if (st?.nextDelayedHour != null && vm.remoteReady && !s.chargeWindowOn && ui.commandInProgress == null) "Turn off" else null) {
+                confirm(if (st?.plugged == true) "Turn off scheduled start? Charging starts now." else "Turn off scheduled start?") { vm.clearScheduledStart() }
+            }
             Divider()
             DetailRow("Battery health", st?.batteryHealthPct?.let { "${it.toInt()} %" } ?: "—")
             EstimatedHealth(s, st)
@@ -105,7 +109,7 @@ fun ChargingScreen(vm: AppViewModel, ui: UiState, s: AppSettings, wide: Boolean)
             confirm(if (start) "Start charging now" else "Stop charging") { vm.charging(start) }
         }
         Text(
-            "Charging power is worked out by LionFlow (the car only reports range per hour): measured from the energy added between two car reports, or estimated from the time left until then. Scheduled start time is set in the car or in the MyPeugeot app; “Stop charging” waits until the scheduled time.",
+            "Charging power is worked out by LionFlow (the car only reports range per hour): measured from the energy added between two car reports, or estimated from the time left until then. Scheduled start time is set in the car or in the MyPeugeot app; “Stop charging” works by turning the scheduled start on (the car then waits for that time). “Turn off” beside it lets the car charge as soon as it is plugged in again.",
             style = Type.tiny, color = c.muted,
         )
         if (vm.remoteReady) ChargeLimitCard(vm, ui, s) else RemoteSetupHint(vm)
@@ -144,11 +148,13 @@ fun EstimatedHealth(s: AppSettings, st: no.lionflow.app.model.VehicleStatus?, co
 }
 
 @Composable
-private fun DetailRow(label: String, value: String) {
+private fun DetailRow(label: String, value: String, action: String? = null, onAction: () -> Unit = {}) {
     val c = LocalLf.current
     Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(label, style = Type.small.copy(fontSize = 14.sp), color = c.muted, modifier = Modifier.weight(1f))
         Text(value, style = Type.label, color = c.text)
+        if (action != null) Text(action, style = Type.label, color = c.accentInk,
+            modifier = Modifier.padding(start = 14.dp).clickable(onClick = onAction).padding(vertical = 6.dp))
     }
 }
 
