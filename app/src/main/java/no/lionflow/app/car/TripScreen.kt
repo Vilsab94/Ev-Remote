@@ -72,7 +72,7 @@ internal class TripScreen private constructor(ctx: CarContext, ui: CarUi, privat
                 launch { combine(CarHub.status, CarHub.message, CarHub.loading) { _, _, _ -> Unit }.collect { redraw() } }
                 launch { while (true) { CarHub.refresh(carContext, force = true); CarHub.askCar(carContext); delay(10_000L) } }
                 // The phone's GPS and the car's speed: the car's place on the route and the speed follow live.
-                launch { combine(ui.guard.fix, ui.guard.speed) { _, _ -> Unit }.collect { redraw() } }
+                launch { combine(ui.guard.fix, ui.guard.speed, CarHub.live) { _, _, _ -> Unit }.collect { redraw() } }
                 launch { while (true) { delay(1_000L); ui.guard.update() } }
                 // A saved trip deleted on the phone: nothing left to show here.
                 if (savedId != null) launch { SavedRoutes.changes.drop(1).collect { if (SavedRoutes.all(carContext).none { it.id == savedId }) goBack() } }
@@ -136,7 +136,8 @@ internal class TripScreen private constructor(ctx: CarContext, ui: CarUi, privat
         // Where the car is: the phone's GPS when it has a fresh fix (it rides along), else where the car last reported.
         val fix = ui.guard.fix.value?.takeIf { System.currentTimeMillis() - it.time < 30_000L }
         val lat = fix?.latitude ?: st?.lat; val lon = fix?.longitude ?: st?.lon
-        val live = SavedRoutes.live(carContext, r, lat, lon, st?.batteryPct)
+        val nowPct = CarHub.live.value.pct ?: st?.batteryPct
+        val live = SavedRoutes.live(carContext, r, lat, lon, nowPct)
         val next = live.nextStop
         val offRoute = lat != null && live.offRouteKm >= 3.0
         val plan = planner?.plan
@@ -173,7 +174,7 @@ internal class TripScreen private constructor(ctx: CarContext, ui: CarUi, privat
             title, status, tone, TripModel.READY,
             big = fmtDistance(live.leftKm, s), bigUnit = tr("left"),
             eta = live.minLeft?.let { tr("≈ {0} · arrive {1}").replace("{0}", carDuration(it)).replace("{1}", clock(System.currentTimeMillis() + (it * 60_000).toLong())) } ?: "",
-            nowPct = st?.batteryPct, nowLabel = tr("Now"),
+            nowPct = nowPct, nowLabel = tr("Now"),
             thenPct = live.pctAtNext, thenLabel = tr(if (next != null) "Next stop" else "Arrival"),
             stopTitle = next?.name ?: tr("No charging stops left"),
             stopSub = if (next != null) tr("In {0}").replace("{0}", fmtDistance(live.toNextKm ?: 0.0, s)) + " · " + left else tr("Straight to the destination"),

@@ -180,9 +180,15 @@ internal abstract class DrawnScreen(ctx: CarContext, protected val ui: CarUi) : 
 
     private fun template(btns: List<Btn>, full: Boolean): Template {
         val strip = ActionStrip.Builder()
+        // Android Auto draws its buttons dark; in the light look they are made light, with dark icons.
+        val light = !CarTheme.refresh(carContext).dark
+        val ink = CarColor.createCustom(0xFF1F2328.toInt(), 0xFF1F2328.toInt())
         for (b in btns) {
             val a = Action.Builder()
-            if (b.title != null) a.setTitle(b.title) else a.setIcon(b.custom ?: carContext.icon(if (b.icon != 0) b.icon else R.drawable.ic_car_refresh, b.tint))
+            if (b.title != null) a.setTitle(b.title)
+            else a.setIcon(b.custom?.let { c -> if (light && b.tint == null) CarIcon.Builder(c).setTint(ink).build() else c }
+                ?: carContext.icon(if (b.icon != 0) b.icon else R.drawable.ic_car_refresh, b.tint ?: if (light) ink else null))
+            if (full && light && b.title == null) a.setBackgroundColor(CarColor.createCustom(0xFFFFFFFF.toInt(), 0xFFFFFFFF.toInt()))
             a.setOnClickListener { ui.safe("button") { b.run() } }
             // Kept on show: buttons that fade away would make the free part of the screen, and so the layout, jump.
             if (full) a.setFlags(Action.FLAG_IS_PERSISTENT)

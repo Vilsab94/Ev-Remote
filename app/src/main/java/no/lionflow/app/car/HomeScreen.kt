@@ -65,7 +65,8 @@ internal class HomeScreen(ctx: CarContext, ui: CarUi) : DrawnScreen(ctx, ui) {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch { combine(CarHub.status, CarHub.message, CarHub.loading, CarHub.trips) { _, _, _, _ -> Unit }.collect { redraw() } }
                 launch { SavedRoutes.changes.collect { redraw() } }
-                launch { while (true) { delay(30_000L); CarHub.refresh(carContext, force = true); CarHub.askCar(carContext) } }   // fresh numbers while it shows
+                launch { while (true) { delay(10_000L); CarHub.refresh(carContext, force = true); CarHub.askCar(carContext) } }   // fresh numbers while it shows
+                launch { CarHub.live.collect { redraw() } }   // battery and range straight from the car
                 launch { while (true) { delay(15_000L); redraw() } }                                  // keeps "reported … ago" right
             }
         }
@@ -76,6 +77,7 @@ internal class HomeScreen(ctx: CarContext, ui: CarUi) : DrawnScreen(ctx, ui) {
 
     override fun shown() {
         several = Garage.hasSeveral(CarHub.app(carContext))
+        ui.guard.askPermissions()
         CarHub.refresh(carContext)
         CarHub.askCar(carContext)
         CarHub.loadTrips(carContext)
@@ -139,8 +141,10 @@ internal class HomeScreen(ctx: CarContext, ui: CarUi) : DrawnScreen(ctx, ui) {
 
     private fun gauge(st: VehicleStatus, s: no.lionflow.app.data.AppSettings): HomeModel.Gauge {
         val fuelOnly = st.energyType == "Fuel"
-        val pct = if (fuelOnly) st.fuelPct ?: st.batteryPct else st.batteryPct
-        val range = if (fuelOnly) st.fuelRangeKm ?: st.rangeKm else st.rangeKm
+        // The car's own reading (live, while Android Auto runs) before the one from the brand's server.
+        val live = CarHub.live.value
+        val pct = if (fuelOnly) st.fuelPct ?: st.batteryPct else live.pct ?: st.batteryPct
+        val range = if (fuelOnly) st.fuelRangeKm ?: st.rangeKm else live.rangeKm ?: st.rangeKm
         val lines = ArrayList<HomeModel.Line>()
         val doors = HomeModel.Line(R.drawable.ic_car_lock, CarHub.doorsLine(st), if (st.openDoors.isNotEmpty() || st.locked == false) Tone.WARN else Tone.TEXT)
         if (fuelOnly) lines += doors

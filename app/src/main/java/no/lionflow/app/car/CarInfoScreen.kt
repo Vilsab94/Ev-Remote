@@ -32,7 +32,8 @@ internal class CarInfoScreen(ctx: CarContext, ui: CarUi) : DrawnScreen(ctx, ui) 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch { combine(CarHub.status, CarHub.message, CarHub.loading) { _, _, _ -> Unit }.collect { redraw() } }
-                launch { while (true) { CarHub.refresh(carContext, force = true); CarHub.askCar(carContext); delay(30_000L) } }
+                launch { while (true) { CarHub.refresh(carContext, force = true); CarHub.askCar(carContext); delay(10_000L) } }
+                launch { CarHub.live.collect { redraw() } }
             }
         }
     }
@@ -65,8 +66,10 @@ internal class CarInfoScreen(ctx: CarContext, ui: CarUi) : DrawnScreen(ctx, ui) 
         fun level(pct: Double) = when { pct < 10 -> Tone.BAD; pct < 20 -> Tone.WARN; else -> Tone.GOOD }
         val fuelOnly = st.energyType == "Fuel"
         if (!fuelOnly) {
-            add("Battery", st.batteryPct?.let { "${it.roundToInt()} %" }, st.batteryPct?.let { level(it) } ?: Tone.TEXT, st.batteryPct)
-            add("Range", st.rangeKm?.let { fmtDistance(it, s) })
+            val live = CarHub.live.value
+            val pct = live.pct ?: st.batteryPct
+            add("Battery", pct?.let { "${it.roundToInt()} %" }, pct?.let { level(it) } ?: Tone.TEXT, pct)
+            add("Range", (live.rangeKm ?: st.rangeKm)?.let { fmtDistance(it, s) })
             add("Energy in the battery", if (st.residualKwh != null && st.capacityKwh != null) "${one(st.residualKwh)} / ${one(st.capacityKwh)} kWh" else st.capacityKwh?.let { "${one(it)} kWh" })
             add("Battery health", st.batteryHealthPct?.let { "${it.roundToInt()} %" }, Tone.TEXT, st.batteryHealthPct)
         }

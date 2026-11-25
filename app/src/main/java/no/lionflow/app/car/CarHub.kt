@@ -324,6 +324,10 @@ object CarHub {
         else -> no.lionflow.app.ui.l10n.tr("Unknown")
     }
 
+    /** Battery and range as the car itself reports them through Android Auto (null when it doesn't). */
+    class Live(val pct: Double?, val rangeKm: Double?)
+    val live = MutableStateFlow(Live(null, null))
+
     private var askedAt = 0L
 
     /**
@@ -336,10 +340,10 @@ object CarHub {
         if (!app.remote.isSetUp) return
         val now = System.currentTimeMillis()
         val at = _status.value?.updatedAtMillis ?: 0L
-        if (now - at < 2 * 60_000L || now - askedAt < 3 * 60_000L) return
+        if (now - at < 60_000L || now - askedAt < 90_000L) return
         askedAt = now
         scope.launch {
-            val sent = app.remote.preWake(minIntervalMs = 3 * 60_000L) {
+            val sent = app.remote.preWake(minIntervalMs = 90_000L) {
                 scope.launch { delay(6_000L); refresh(ctx, force = true); delay(15_000L); refresh(ctx, force = true) }
             }
             if (sent) app.remote.addLog("Android Auto: asked the car for a fresh status")

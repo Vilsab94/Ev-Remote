@@ -68,13 +68,29 @@ class ParkGuard(private val ctx: CarContext) {
         override fun onProviderDisabled(p: String) {}
     }
 
+    /** Battery and range straight from the car (much fresher than the brand's server). */
+    private val energyListener = OnCarDataAvailableListener<androidx.car.app.hardware.info.EnergyLevel> { e ->
+        val pct = e.batteryPercent.takeIf { it.status == CarValue.STATUS_SUCCESS }?.value?.toDouble()?.takeIf { it in 0.0..100.0 }
+        val range = e.rangeRemainingMeters.takeIf { it.status == CarValue.STATUS_SUCCESS }?.value?.toDouble()?.takeIf { it >= 0 }?.div(1000.0)
+        if (pct != null || range != null) CarHub.live.value = CarHub.Live(pct, range)
+    }
+
+    /** The car's speed and energy need permissions the user gives once; asked for when missing. */
+    fun askPermissions() {
+        val want = listOf(PERM_SPEED, PERM_FUEL).filter { ContextCompat.checkSelfPermission(ctx, it) != PackageManager.PERMISSION_GRANTED }
+        if (want.isEmpty() || asked) return
+        asked = true
+        try { ctx.requestPermissions(want) { granted, _ -> if (granted.isNotEmpty()) { stop(); start() } } } catch (_: Exception) { }
+    }
+    private var asked = false
+
     @SuppressLint("MissingPermission")
     fun start() {
         if (started) return
         started = true
-        try {
-            ctx.getCarService(CarHardwareManager::class.java).carInfo.addSpeedListener(ContextCompat.getMainExecutor(ctx), speedListener)
-        } catch (_: Exception) { }
+        val hw = try { ctx.getCarService(CarHardwareManager::class.java).carInfo } catch (_: Exception) { null }
+        try { hw?.addSpeedListener(ContextCompat.getMainExecutor(ctx), speedListener) } catch (_: Exception) { }
+        try { hw?.addEnergyLevelListener(ContextCompat.getMainExecutor(ctx), energyListener) } catch (_: Exception) { }
         if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             try {
                 ctx.getSystemService(LocationManager::class.java)
@@ -88,6 +104,8 @@ class ParkGuard(private val ctx: CarContext) {
         if (!started) return
         started = false
         try { ctx.getCarService(CarHardwareManager::class.java).carInfo.removeSpeedListener(speedListener) } catch (_: Exception) { }
+        try { ctx.getCarService(CarHardwareManager::class.java).carInfo.removeEnergyLevelListener(energyListener) } catch (_: Exception) { }
+        CarHub.live.value = CarHub.Live(null, null)
         try { ctx.getSystemService(LocationManager::class.java).removeUpdates(gps) } catch (_: Exception) { }
     }
 
@@ -111,3 +129,6 @@ class ParkGuard(private val ctx: CarContext) {
         if (now - gpsAt > 30_000) _fix.value = null
     }
 }
+
+private const val PERM_SPEED = "com.google.android.gms.permission.CAR_SPEED"
+private const val PERM_FUEL = "com.google.android.gms.permission.CAR_FUEL"

@@ -140,15 +140,35 @@ internal class ChargerListScreen(ctx: CarContext, ui: CarUi) : ListScreen(ctx, u
     private var listed: List<Pair<Charger, Boolean>> = emptyList()
 
     init {
-        lifecycleScope.launch { repeatOnLifecycle(Lifecycle.State.STARTED) { combine(CarHub.chargers, CarHub.fuel, CarHub.status) { _, _, _ -> Unit }.collect { changed() } } }
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch { combine(CarHub.chargers, CarHub.fuel, CarHub.status) { _, _, _ -> Unit }.collect { changed() } }
+                // Distances follow the car while the list shows; far from where the list was made, it is made again.
+                launch { while (true) { kotlinx.coroutines.delay(5_000L); ui.guard.update(); if (movedFar()) load(); changed() } }
+            }
+        }
     }
 
     override fun shown() { super.shown(); load() }
     override fun refresh() { CarHub.refresh(carContext, force = true); load() }
 
+    /** Where the car is now: the phone's GPS when fresh, else where the car last reported. */
+    private fun here(): Pair<Double, Double>? {
+        ui.guard.fix.value?.takeIf { System.currentTimeMillis() - it.time < 30_000L }?.let { return it.latitude to it.longitude }
+        val st = CarHub.status.value ?: return null
+        return (st.lat ?: return null) to (st.lon ?: return null)
+    }
+    private var loadedAt: Pair<Double, Double>? = null
+
+    private fun movedFar(): Boolean {
+        val a = loadedAt ?: return false; val b = here() ?: return false
+        return CarHub.distanceM(a.first, a.second, b.first, b.second) > 3_000
+    }
+
     private fun load() {
         val st = CarHub.status.value ?: return
-        val la = st.lat ?: return; val lo = st.lon ?: return
+        val (la, lo) = here() ?: return
+        loadedAt = la to lo
         if (st.energyType != "Fuel") CarHub.loadChargers(carContext, la, lo)
         if (st.energyType != "Electric") CarHub.loadFuel(carContext, la, lo)
     }
@@ -161,7 +181,9 @@ internal class ChargerListScreen(ctx: CarContext, ui: CarUi) : ListScreen(ctx, u
         val fuel = if (type == "Electric") emptyList() else CarHub.fuel.value
         val title = tr(when (type) { "Fuel" -> "Fuel stations near the car"; "Hybrid" -> "Chargers and fuel near the car"; else -> "Chargers near the car" })
         // Nearest first, chargers and fuel stations together for a plug-in hybrid.
-        listed = (chargers.take(40).map { it to false } + fuel.take(40).map { it to true }).sortedBy { it.first.distanceM ?: Int.MAX_VALUE }.take(60)
+        val here = here()
+        fun dist(c: Charger): Int? = here?.let { (la, lo) -> CarHub.distanceM(la, lo, c.lat, c.lon).toInt() } ?: c.distanceM
+        listed = (chargers.take(40).map { it to false } + fuel.take(40).map { it to true }).sortedBy { dist(it.first) ?: Int.MAX_VALUE }.take(60)
         val rows = listed.mapIndexed { i, (ch, isFuel) ->
             val bits = ArrayList<String>()
             if (!isFuel && ch.maxKw > 0) bits += "${ch.maxKw.toInt()} kW"
@@ -169,11 +191,11 @@ internal class ChargerListScreen(ctx: CarContext, ui: CarUi) : ListScreen(ctx, u
             if (bits.isEmpty() && ch.address.isNotBlank()) bits += ch.address
             // A charger can be tapped: that plans the trip there, with the battery left on arrival.
             ListModel.Row(if (isFuel) null else "c$i", ch.name, bits.joinToString(" · "), if (isFuel) R.drawable.ic_car_fuel else R.drawable.ic_car_charger,
-                lit = !isFuel && ch.maxKw >= 50, end = ch.distanceM?.let { carShortDistance(it, s) } ?: "")
+                lit = !isFuel && ch.maxKw >= 50, end = dist(ch)?.let { carShortDistance(it, s) } ?: "")
         }
         val empty = when {
             st == null -> tr("Getting the car's status…")
-            st.lat == null || st.lon == null -> tr("The car hasn't shared its position")
+            here == null -> tr("The car hasn't shared its position")
             else -> tr("Loading…")
         }
         return ListModel(title, null, rows = rows, empty = empty)
