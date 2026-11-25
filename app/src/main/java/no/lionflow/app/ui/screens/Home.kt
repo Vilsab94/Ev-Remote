@@ -105,6 +105,7 @@ private fun HomePhone(vm: AppViewModel, ui: UiState, s: AppSettings) {
         Column(Modifier.padding(horizontal = 20.dp).padding(top = 4.dp, bottom = 20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             UpdateCard(vm, ui)
             NoStatusCard(ui)
+            QuietCarCard(vm, ui)
             BatteryCard(vm, ui, s)
             LockLine(ui)
             QuickActions(vm, ui)
@@ -242,6 +243,36 @@ private fun NoStatusCard(ui: UiState) {
     LfCard(radius = 20.dp, padding = androidx.compose.foundation.layout.PaddingValues(14.dp)) {
         Text("No live status for this car", style = Type.label, color = c.text)
         Text("The carmaker doesn't send live data (battery, doors, position) for this model. Trips, fuel economy and service info still work.", style = Type.tiny, color = c.muted)
+    }
+}
+
+/**
+ * The car itself hasn't sent anything new for hours. Nothing an app can force: say so plainly, with
+ * what usually helps, so it doesn't look like LionFlow is stuck.
+ */
+@Composable
+private fun QuietCarCard(vm: AppViewModel, ui: UiState) {
+    val st = ui.status ?: return
+    if (vm.isDemo || ui.statusMissing || st.moving) return
+    val at = st.updatedAtMillis ?: return
+    val quietFor = ui.now - at
+    // With remote control the app wakes the car on open, so 6 h means it didn't answer; without it, a parked car can be quiet overnight.
+    if (quietFor < (if (vm.remoteReady) 6 else 24) * 3_600_000L) return
+    // Give the wake-up on open a moment before saying anything.
+    var settled by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(Unit) { kotlinx.coroutines.delay(20_000); settled = true }
+    var hidden by androidx.compose.runtime.saveable.rememberSaveable(at) { mutableStateOf(false) }
+    if (!settled || hidden || ui.refreshing) return
+    val c = LocalLf.current
+    LfCard(radius = 20.dp, padding = androidx.compose.foundation.layout.PaddingValues(14.dp)) {
+        Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("The car hasn't sent new data", style = Type.label, color = c.text)
+                Text("Last report ${minutesAgo(at, ui.now)}. LionFlow shows what the car last sent to the carmaker's server. If the official app has no new data either, the car's connection is asleep or the carmaker's service has a problem, and no app can fix that from the phone.", style = Type.tiny, color = c.muted)
+                Text("A short drive, or locking and unlocking with the key, usually wakes it up. If it lasts for days, ask your dealer to check the car's connected services.", style = Type.tiny, color = c.muted)
+            }
+            Text("OK", style = Type.label, color = c.accentInk, modifier = Modifier.clickable { hidden = true }.padding(8.dp))
+        }
     }
 }
 
@@ -561,6 +592,7 @@ private fun HomeMain(vm: AppViewModel, ui: UiState, s: AppSettings, wide: Boolea
     }
 
     if (vm.isDemo && !vm.hideDemoBanner) DemoBanner(vm)
+    QuietCarCard(vm, ui)
     CarPhoto(vm, ui)
 
     // Status chips

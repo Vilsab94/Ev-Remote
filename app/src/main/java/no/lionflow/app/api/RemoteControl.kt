@@ -61,6 +61,10 @@ class RemoteControl(private val api: StellantisApi, private val secure: SecureSt
         while (log.size > 40) log.pollLast()
     }
     @Volatile private var lastWake = 0L
+    // When the car doesn't answer wake-ups (asleep connection, or "busy with another request"), stop
+    // asking so often: piling up requests doesn't help and can keep the car's queue busy.
+    @Volatile private var wakePauseUntil = 0L
+    @Volatile private var wakePauseMs = 0L
 
     val isSetUp: Boolean get() = secure.get(K_OTP) != null
 
@@ -161,6 +165,7 @@ class RemoteControl(private val api: StellantisApi, private val secure: SecureSt
                 if (id in wakeIds) {
                     if (code == "903" || code !in IN_PROGRESS) wakeDone?.complete(Unit)
                     if (code !in IN_PROGRESS) {
+                        noteWakeAnswer(code)
                         wakeIds.remove(id)
                         wakeWaiters.remove(id)?.let { cb -> if (code == "0" || code == "1") cb() }
                     }
@@ -357,6 +362,7 @@ class RemoteControl(private val api: StellantisApi, private val secure: SecureSt
         if (!isSetUp) return false
         val now = System.currentTimeMillis()
         if (now - lastWake < minIntervalMs) return false
+        if (now < wakePauseUntil) return false
         lastWake = now
         return try {
             lock.withLock {
@@ -374,6 +380,15 @@ class RemoteControl(private val api: StellantisApi, private val secure: SecureSt
             true
         } catch (e: Exception) {
             false
+        }
+    }
+
+    private fun noteWakeAnswer(code: String) {
+        if (code == "0" || code == "1" || code == "903") { wakePauseMs = 0; wakePauseUntil = 0; return }
+        if (code == "300" || code == "502" || code == "500") {
+            wakePauseMs = (if (wakePauseMs == 0L) 10 * 60_000L else wakePauseMs * 2).coerceAtMost(2 * 60 * 60_000L)
+            wakePauseUntil = System.currentTimeMillis() + wakePauseMs
+            addLog("Car didn't answer the wake-up ($code) · next try in ${wakePauseMs / 60_000} min")
         }
     }
 

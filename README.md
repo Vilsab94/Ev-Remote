@@ -21,7 +21,7 @@ Status, battery, range, trips and service data come with your brand account. Cha
 - **Range that makes sense:** when Peugeot's server reports 0 km by mistake, LionFlow estimates from your own driving instead.
 - **Clear errors:** when something fails you get the actual reason and code, not a generic "try again later".
 - **More on screen:** a Wear OS watch app, a home-screen widget, a free 2D/3D charger map, local weather and forecast, and layouts for foldables and tablets.
-- **Your language:** English, French, German, Spanish or Norwegian (Settings → Appearance → Language), or follow the phone.
+- **Your language:** English, French, German, Spanish, Norwegian or Dutch (Settings → Appearance → Language), or follow the phone.
 - **Several cars:** switch between the cars on your MyPeugeot account, including petrol and diesel ones (fuel level and range).
 - **Private and secure:** no ads, no analytics, no tracking. Sign-in tokens are encrypted on the phone, and remote actions can require your fingerprint. All the code is public, so anyone can check what it does.
 
