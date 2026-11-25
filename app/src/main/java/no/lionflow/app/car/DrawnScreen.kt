@@ -123,6 +123,9 @@ internal abstract class DrawnScreen(ctx: CarContext, protected val ui: CarUi) : 
     protected abstract fun draw(c: Canvas, k: Kit, pressed: String?, hits: MutableList<Hit>)
     protected abstract fun tapped(key: String)
 
+    /** Whether the sun / moon button is added (the start screen has its own). */
+    protected open val themeButton: Boolean get() = true
+
     /** Whether swipes on the screen are wanted (lists turn pages with them). */
     protected open val swipes: Boolean get() = false
     protected open fun shown() {}
@@ -157,9 +160,12 @@ internal abstract class DrawnScreen(ctx: CarContext, protected val ui: CarUi) : 
     final override fun onGetTemplate(): Template {
         val list = try { buttons().take(4) } catch (e: Exception) { ui.log("buttons of ${javaClass.simpleName}", e); emptyList() }
         val btns = ArrayList<Btn>()
-        // A back button among Android Auto's own too, until the drawn one (top left) is known to get its taps on
-        // this car — and always without a touch screen.
-        if ((ui.plain || !ui.backTapSeen) && screenManager.stackSize > 1) btns += Btn(R.drawable.ic_car_back) { goBack() }
+        // A back button among Android Auto's own too (beside the drawn one at the top left), so there is always a
+        // sure way back; and the sun / moon to switch between the dark and light look on every screen.
+        if (screenManager.stackSize > 1) btns += Btn(R.drawable.ic_car_back) { goBack() }
+        if (themeButton) btns += Btn(if (CarTheme.refresh(carContext).dark) R.drawable.ic_car_sun else R.drawable.ic_car_moon) {
+            CarTheme.toggle(carContext); invalidate(); redraw()
+        }
         btns += list
         if (btns.isEmpty()) btns += Btn(R.drawable.ic_car_refresh) { CarHub.refresh(carContext, force = true) }
         val shownBtns = btns.take(4)

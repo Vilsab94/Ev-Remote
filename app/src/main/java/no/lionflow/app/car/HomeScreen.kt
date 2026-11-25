@@ -88,6 +88,8 @@ internal class HomeScreen(ctx: CarContext, ui: CarUi) : DrawnScreen(ctx, ui) {
         else CarToast.makeText(carContext, tr(ui.guard.reason), CarToast.LENGTH_LONG).show()
     }
 
+    override val themeButton: Boolean get() = false
+
     override fun buttons(): List<Btn> {
         val pal = CarTheme.refresh(carContext)
         val out = ArrayList<Btn>()

@@ -41,6 +41,7 @@ class CarScreensTest {
         private val count: Int = 1, private val text: Boolean = false, private val swipe: Boolean = false,
     ) : DrawnScreen(ctx, ui) {
         override val swipes: Boolean get() = swipe
+        override val themeButton: Boolean get() = false
         override fun buttons(): List<Btn> = (0 until count).map { i -> if (text && i == 0) Btn(title = "Save trip") { } else Btn(R.drawable.ic_car_refresh) { } }
         override fun draw(c: Canvas, k: Kit, pressed: String?, hits: MutableList<Hit>) {
             c.drawColor(k.pal.bg)

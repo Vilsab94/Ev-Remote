@@ -69,6 +69,8 @@ class TripModel(
     val stops: List<Stop> = emptyList(),
     val endPct: Double? = null, val destName: String = "", val totalLabel: String = "",
     val map: Bitmap? = null, val credit: String = "",
+    /** How fast the car goes now (whole km/h or mph), when known. */
+    val speed: Int? = null, val speedUnit: String = "km/h",
 ) {
     class Stop(val lat: Double, val lon: Double, val km: Double, val passed: Boolean, val next: Boolean, val pct: Double?, val about: Boolean)
     companion object {
@@ -254,6 +256,24 @@ object TripPaint {
         if (box.width() > 30f * u) stopBox(c, k, m, box)
     }
 
+    /** The speed in a round dial: the number large, the unit under it, and a thin arc that fills up to 130 km/h. */
+    private fun speedDial(c: Canvas, k: Kit, cx: Float, cy: Float, r: Float, speed: Int, unit: String) {
+        val u = k.u; val pal = k.pal
+        c.drawCircle(cx, cy, r + 0.5f * u, k.fill(Kit.alpha(pal.bg, 0.55f)))
+        c.drawCircle(cx, cy, r, k.fill(Kit.alpha(pal.card, 0.96f)))
+        // A gauge open at the bottom, like a speedometer.
+        val top = if (unit == "mph") 80f else 130f
+        val a = r - 1.1f * u
+        val oval = RectF(cx - a, cy - a, cx + a, cy + a)
+        c.drawArc(oval, 135f, 270f, false, k.stroke(Kit.alpha(pal.text, 0.12f), 0.6f * u))
+        val sweep = 270f * (speed / top).coerceIn(0f, 1f)
+        if (sweep > 1f) c.drawArc(oval, 135f, sweep, false, k.stroke(pal.accentInk, 0.6f * u))
+        val np = k.text(0f, pal.text, Kit.bold, Paint.Align.CENTER).apply { textSize = r * (if (speed >= 100) 0.66f else 0.76f) }
+        c.drawText("$speed", cx, cy + r * 0.16f, np)
+        val up = k.text(0f, pal.muted, Kit.medium, Paint.Align.CENTER).apply { textSize = r * 0.27f }
+        c.drawText(unit, cx, cy + r * 0.52f, up)
+    }
+
     // ---------------- the map ----------------
 
     private fun map(c: Canvas, k: Kit, l: TripLayout, m: TripModel) {
@@ -342,6 +362,9 @@ object TripPaint {
             c.drawCircle(cx, cy, 2.5f * u, k.fill(0xFFFFFFFF.toInt()))
             c.drawCircle(cx, cy, 1.8f * u, k.fill(pal.orange))
         }
+
+        // The speed, in a small round dial at the top left of the map.
+        m.speed?.let { v -> speedDial(c, k, box.left + 2.4f * u + 7.6f * u, box.top + 2.4f * u + 7.6f * u, 7.6f * u, v, m.speedUnit) }
 
         // The line at the bottom: start → stops → end, with the car on it.
         val panel = l.panel

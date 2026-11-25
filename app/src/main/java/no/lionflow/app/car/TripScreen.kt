@@ -4,7 +4,6 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import androidx.car.app.CarContext
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.delay
@@ -27,6 +26,7 @@ import no.lionflow.app.ui.fmtDistance
 import no.lionflow.app.ui.l10n.L10n
 import no.lionflow.app.ui.l10n.TimeFmt
 import no.lionflow.app.ui.l10n.tr
+import kotlin.math.roundToInt
 
 /**
  * A trip on the car screen: a card with what is left and the battery now and at the next stop, the route on a map
@@ -71,6 +71,9 @@ internal class TripScreen private constructor(ctx: CarContext, ui: CarUi, privat
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch { combine(CarHub.status, CarHub.message, CarHub.loading) { _, _, _ -> Unit }.collect { redraw() } }
                 launch { while (true) { CarHub.refresh(carContext, force = true); delay(10_000L) } }
+                // The phone's GPS and the car's speed: the car's place on the route and the speed follow live.
+                launch { combine(ui.guard.fix, ui.guard.speed) { _, _ -> Unit }.collect { redraw() } }
+                launch { while (true) { delay(1_000L); ui.guard.update() } }
                 // A saved trip deleted on the phone: nothing left to show here.
                 if (savedId != null) launch { SavedRoutes.changes.drop(1).collect { if (SavedRoutes.all(carContext).none { it.id == savedId }) goBack() } }
                 // The planner's state is watched here; while it works, a mark goes round.
@@ -88,9 +91,7 @@ internal class TripScreen private constructor(ctx: CarContext, ui: CarUi, privat
         }
     }
 
-    override fun shown() { if (mapKey != null && mapPic == null && snapper == null) startMap() }
-
-    override fun onDestroy(owner: LifecycleOwner) { try { snapper?.cancel() } catch (_: Exception) { }; snapper = null }
+    override fun shown() { if (mapKey != null && mapPic == null && mapJob == null) startMap() }
 
     override fun buttons() = listOf(Btn(R.drawable.ic_car_refresh) {
         if (planner != null && planner.plan == null && planner.error != null) planner.go()
@@ -132,9 +133,12 @@ internal class TripScreen private constructor(ctx: CarContext, ui: CarUi, privat
     private fun ready(r: SavedRoutes.Saved, title: String, status: String, tone: Int, k: Kit): TripModel {
         val s = app.settings.value
         val st = CarHub.status.value
-        val live = SavedRoutes.live(carContext, r, st?.lat, st?.lon, st?.batteryPct)
+        // Where the car is: the phone's GPS when it has a fresh fix (it rides along), else where the car last reported.
+        val fix = ui.guard.fix.value?.takeIf { System.currentTimeMillis() - it.time < 30_000L }
+        val lat = fix?.latitude ?: st?.lat; val lon = fix?.longitude ?: st?.lon
+        val live = SavedRoutes.live(carContext, r, lat, lon, st?.batteryPct)
         val next = live.nextStop
-        val offRoute = st?.lat != null && live.offRouteKm >= 3.0
+        val offRoute = lat != null && live.offRouteKm >= 3.0
         val plan = planner?.plan
 
         val note: String?; val noteTone: Int
@@ -161,7 +165,7 @@ internal class TripScreen private constructor(ctx: CarContext, ui: CarUi, privat
         val key = "${r.id}:${layout.map.width().toInt()}x${layout.map.height().toInt()}:${k.pal.dark}"
         if (key != mapKey) {
             mapKey = key; mapPic = null; mapTries = 0
-            mapView = view; mapRatio = (k.u / 3.4f).coerceIn(1f, 3f); mapDark = k.pal.dark
+            mapView = view; mapDark = k.pal.dark
             main.post { startMap() }
         }
 
@@ -175,61 +179,42 @@ internal class TripScreen private constructor(ctx: CarContext, ui: CarUi, privat
             stopSub = if (next != null) tr("In {0}").replace("{0}", fmtDistance(live.toNextKm ?: 0.0, s)) + " · " + left else tr("Straight to the destination"),
             stopLive = next != null,
             note = note, noteTone = noteTone,
-            lat = r.lat, lon = r.lon, km = r.km, at = live.at, showCar = st?.lat != null && st.lon != null && !offRoute,
+            lat = r.lat, lon = r.lon, km = r.km, at = live.at, showCar = lat != null && lon != null && !offRoute,
+            speed = ui.guard.speed.value?.let { v -> if (s.distanceUnit == "mi") (v * 2.23694f).roundToInt() else (v * 3.6f).roundToInt() },
+            speedUnit = if (s.distanceUnit == "mi") "mph" else "km/h",
             stops = stops, endPct = live.pctAtEnd,
             // A round trip ends where it started: no name at the end of the line then.
             destName = if (r.name.trimEnd().endsWith("⇄")) "" else r.name.substringAfterLast("→ ").trim(), totalLabel = fmtDistance(r.totalKm, s),
-            map = mapPic, credit = "© OpenFreeMap © OpenStreetMap",
+            map = mapPic, credit = CarMap.CREDIT,
         )
     }
 
     // ---------------- the map picture ----------------
 
-    /** The map behind the route (the same OpenFreeMap style as the app), made once per route, size and look. */
+    /** The map behind the route, made once per route, size and look, on a background thread. */
     private var mapPic: Bitmap? = null
     private var mapKey: String? = null
     private var mapView: MapView? = null
-    private var mapRatio = 2f
     private var mapDark = true
     private var mapTries = 0
-    private var snapper: org.maplibre.android.snapshotter.MapSnapshotter? = null
+    private var mapJob: kotlinx.coroutines.Job? = null
 
     private fun startMap() {
         val key = mapKey ?: return
         val v = mapView ?: return
         if (!showing || mapPic != null) return
-        try { snapper?.cancel() } catch (_: Exception) { }
-        snapper = null
+        mapJob?.cancel()
         mapTries++
-        try {
-            org.maplibre.android.MapLibre.getInstance(carContext.applicationContext)
-            val url = if (mapDark) "https://tiles.openfreemap.org/styles/dark" else "https://tiles.openfreemap.org/styles/positron"
-            val bounds = org.maplibre.android.geometry.LatLngBounds.from(v.north, v.east, v.south, v.west)
-            val opts = org.maplibre.android.snapshotter.MapSnapshotter.Options((v.box.width() / mapRatio).toInt().coerceAtLeast(64), (v.box.height() / mapRatio).toInt().coerceAtLeast(64))
-                .withPixelRatio(mapRatio)
-                .withStyleBuilder(org.maplibre.android.maps.Style.Builder().fromUri(url))
-                .withRegion(bounds)
-                .withLogo(false)
-            val sn = org.maplibre.android.snapshotter.MapSnapshotter(carContext.applicationContext, opts)
-            snapper = sn
-            sn.start({ shot ->
-                if (snapper === sn) snapper = null
-                if (mapKey == key) { mapPic = shot.bitmap; redraw() }
-            }, { err ->
-                if (snapper === sn) snapper = null
-                ui.log("map picture: $err")
-                retryMap(key)
-            })
-        } catch (e: Throwable) {
-            // The trip is shown without a map behind it.
-            ui.log("map picture", e)
-            retryMap(key)
+        val dark = mapDark
+        val app = carContext.applicationContext
+        mapJob = lifecycleScope.launch {
+            val pic = try { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { CarMap.picture(app, v, dark) } }
+                catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                catch (e: Throwable) { ui.log("map picture", e); null }
+            mapJob = null
+            if (mapKey != key) return@launch
+            if (pic != null) { mapPic = pic; redraw() }
+            else if (mapTries < 3) { delay(8_000L); if (mapKey == key && mapPic == null && showing) startMap() }
         }
-    }
-
-    /** One more try a little later (the first one often fails when the phone has just got its connection). */
-    private fun retryMap(key: String) {
-        if (mapTries >= 2) return
-        main.postDelayed({ if (mapKey == key && mapPic == null && showing) startMap() }, 6_000L)
     }
 }

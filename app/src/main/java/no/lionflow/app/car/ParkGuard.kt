@@ -29,6 +29,15 @@ class ParkGuard(private val ctx: CarContext) {
     var reason: String = "Checking whether the car is parked…"
         private set
 
+    /** How fast the car goes now, in m/s: from the car when it says, else from the phone's GPS. Null when unknown. */
+    private val _speed = MutableStateFlow<Float?>(null)
+    val speed: StateFlow<Float?> = _speed
+
+    /** Where the phone (and so the car) is now, from its GPS; null without a fresh fix. */
+    private val _fix = MutableStateFlow<Location?>(null)
+    val fix: StateFlow<Location?> = _fix
+    private var gpsSpeed: Float? = null
+
     private var carSpeed: Float? = null
     private var carSpeedAt = 0L
     private var gpsStillSince = 0L
@@ -48,6 +57,8 @@ class ParkGuard(private val ctx: CarContext) {
         override fun onLocationChanged(l: Location) {
             val now = System.currentTimeMillis()
             gpsAt = now
+            gpsSpeed = if (l.hasSpeed()) l.speed else null
+            if (l.accuracy < 100f) _fix.value = l
             val still = l.hasSpeed() && l.speed < 1f && l.accuracy < 50f
             if (still) { if (gpsStillSince == 0L) gpsStillSince = now } else gpsStillSince = 0L
             update()
@@ -96,5 +107,7 @@ class ParkGuard(private val ctx: CarContext) {
             reason = if (now - gpsAt < 10_000) "Video is only available while parked" else "Can't confirm the car is parked (no speed from the car or GPS yet)"
         }
         _parked.value = p
+        _speed.value = car ?: gpsSpeed?.takeIf { now - gpsAt < 5_000 }
+        if (now - gpsAt > 30_000) _fix.value = null
     }
 }
