@@ -458,6 +458,31 @@ private fun LinkRow(title: String, subtitle: String, icon: ImageVector, last: Bo
     }
 }
 
+/**
+ * Release notes as points: a line starting with "-" or "*" starts a point, and the lines after it (the notes are
+ * wrapped at a fixed width) belong to it until the next point or an empty line. Text outside points comes as
+ * paragraphs. Each entry: the text, and whether it is a point.
+ */
+internal fun notePoints(notes: String): List<Pair<String, Boolean>> {
+    val out = ArrayList<Pair<String, Boolean>>()
+    var cur: StringBuilder? = null
+    var bullet = false
+    fun flush() { cur?.toString()?.trim()?.takeIf { it.isNotEmpty() }?.let { out += it to bullet }; cur = null }
+    for (raw in notes.lines()) {
+        val line = raw.trim()
+        when {
+            line.isEmpty() -> flush()
+            line.startsWith("- ") || line.startsWith("* ") || line.startsWith("• ") -> { flush(); cur = StringBuilder(line.substring(2).trim()); bullet = true }
+            // The first line is a heading of its own.
+            out.isEmpty() && cur == null -> { cur = StringBuilder(line); bullet = false; flush() }
+            cur == null -> { cur = StringBuilder(line); bullet = false }
+            else -> cur!!.append(' ').append(line)
+        }
+    }
+    flush()
+    return out
+}
+
 /** Releases, newest first: version, date-free heading and the notes. The installed version is marked. */
 @Composable
 fun ChangeList(list: List<no.lionflow.app.update.Release>, modifier: Modifier = Modifier) {
@@ -468,8 +493,15 @@ fun ChangeList(list: List<no.lionflow.app.update.Release>, modifier: Modifier = 
                 val mine = r.versionCode == BuildConfig.VERSION_CODE
                 androidx.compose.material3.Text(r.name + if (mine) "  ·  " + no.lionflow.app.ui.l10n.L10n.tr("installed") else "",
                     style = Type.label, color = if (mine) c.accentInk else c.text)
-                r.notes.lines().filter { it.isNotBlank() }.forEach { line ->
-                    androidx.compose.material3.Text("• " + line.trimStart('-', '*', ' '), style = Type.small, color = c.text2)
+                val points = notePoints(r.notes)
+                points.forEachIndexed { i, (text, bullet) ->
+                    // The first line is the release's heading; the rest are its points (or plain paragraphs).
+                    if (i == 0 && !bullet) androidx.compose.material3.Text(text, style = Type.small.copy(fontWeight = FontWeight.SemiBold), color = c.text)
+                    else if (bullet) Row {
+                        androidx.compose.material3.Text("•  ", style = Type.small, color = c.text2)
+                        androidx.compose.material3.Text(text, style = Type.small, color = c.text2)
+                    }
+                    else androidx.compose.material3.Text(text, style = Type.small, color = c.text2)
                 }
             }
         }
