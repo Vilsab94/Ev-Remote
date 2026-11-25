@@ -21,6 +21,11 @@ open class LionFlowApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // Android 9 and older have no TLS 1.3, and the route servers (OSRM, Valhalla) accept only TLS 1.3.
+        // Bundled Conscrypt as the first provider gives OkHttp TLS 1.3 there; Android 10+ has it built in.
+        if (android.os.Build.VERSION.SDK_INT < 29) {
+            java.security.Security.insertProviderAt(org.conscrypt.Conscrypt.newProvider(), 1)
+        }
         settings = SettingsStore(this)
         no.lionflow.app.ui.l10n.L10n.init(this, settings.value.language)
         no.lionflow.app.ui.l10n.TimeFmt.setPreference(this, settings.value.timeFormat)

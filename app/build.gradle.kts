@@ -119,6 +119,8 @@ dependencies {
     implementation("androidx.work:work-runtime-ktx:2.10.0")
 
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    // TLS 1.3 on Android 8/9 (see LionFlowApp.onCreate)
+    implementation("org.conscrypt:conscrypt-android:2.5.3")
     implementation("org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5")
     implementation("org.maplibre.gl:android-sdk:11.5.2")
 
