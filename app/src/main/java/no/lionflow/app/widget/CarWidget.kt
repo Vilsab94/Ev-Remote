@@ -296,6 +296,9 @@ class WidgetRefreshWorker(ctx: Context, params: WorkerParameters) : CoroutineWor
             } catch (e: AuthExpiredException) {
                 explainer.cancel()
                 WidgetData.setRefresh(ctx, false, "Signed out by Peugeot — open LionFlow to sign in again")
+            } catch (e: no.lionflow.app.api.ApiException) {
+                explainer.cancel()
+                WidgetData.setRefresh(ctx, false, if (e.noData) "No live status for this car" else "Peugeot didn't answer — tap ↻ to try again")
             } catch (e: IOException) {
                 explainer.cancel()
                 WidgetData.setRefresh(ctx, false, "No connection — tap ↻ to try again")

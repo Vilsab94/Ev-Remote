@@ -360,7 +360,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         try {
             vehicleMetadataLock.withLock {
                 if (profile != api.profile) return@withLock
-                val all = api.vehicles(checkSelectedBranding = true)
+                val all = try { api.vehicles(checkSelectedBranding = true) } catch (e: no.lionflow.app.api.ApiException) {
+                    if (!e.noData) throw e
+                    toast("${no.lionflow.app.model.Brands.current.display} says no car is available on this account for the country you chose")
+                    return@withLock
+                }
                 if (profile != api.profile) return@withLock
                 val vehicle = api.pick(all)
                 vehicle?.let { brandingAttempts.add(profile to it.vin) }
@@ -403,7 +407,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 // Some accounts answer "No vehicle found" (404 / 40400) when the car isn't available to third-party apps: not a failed sign-in.
                 var none = false
                 val all = try { api.vehicles() } catch (e: no.lionflow.app.api.ApiException) {
-                    if (e.code != 404 && !(e.message ?: "").contains("40400")) throw e
+                    if (!e.noData) throw e
                     none = true; emptyList()
                 }
                 val v = api.pick(all)
@@ -638,14 +642,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 if (profile != api.profile || _ui.value.vehicle?.let { it.vin != v.vin } == true) return@launch
                 var missing = false
                 val raw = try { api.status(v) } catch (e: no.lionflow.app.api.ApiException) {
-                    if (e.code != 404 && !(e.message ?: "").contains("40400")) throw e
+                    if (!e.noData) throw e
                     missing = true
+                    remote.addLog("status: the server has no live status for this car (${e.code})")
                     // No live status for this car: carry on with just what we know (trips, service) so the app is still usable.
-                    org.json.JSONObject().put("energies", org.json.JSONArray().apply {
-                        val m = v.motorization.lowercase()
-                        if (m != "thermal" && m != "") put(org.json.JSONObject().put("type", "Electric"))
-                        if (m == "thermal" || m == "hybrid") put(org.json.JSONObject().put("type", "Fuel"))
-                    })
+                    api.blankStatus(v)
                 }
                 val maint = try { api.maintenance(v) } catch (e: no.lionflow.app.api.ApiException) { if (missing) null else throw e }
                 // Reload cars can complete while the status request is in flight.

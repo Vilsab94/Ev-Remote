@@ -8,7 +8,13 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
-class ApiException(val code: Int, message: String) : Exception(message)
+class ApiException(val code: Int, message: String) : Exception(message) {
+    /**
+     * The brand's server has nothing for this car ("404 / 40400": no status, no trips). Older cars without the
+     * connected box answer this way, and in some countries the server sends the 40400 with another HTTP code.
+     */
+    val noData: Boolean get() = code == 404 || message.orEmpty().contains("40400")
+}
 
 object Http {
     val client: OkHttpClient = OkHttpClient.Builder()

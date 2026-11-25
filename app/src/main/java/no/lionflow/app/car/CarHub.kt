@@ -122,7 +122,9 @@ object CarHub {
                 if (v == null) diag = "no vehicle found on the account"
                 if (v != null) {
                     diag = "vehicle ok, getting status…"
-                    val st = no.lionflow.app.model.ChargePower.record(app.api.readStatus(v))
+                    // A car the server has no live status for still gets a (nearly empty) status, so the screens work.
+                    val raw = try { app.api.status(v) } catch (e: no.lionflow.app.api.ApiException) { if (e.noData) app.api.blankStatus(v) else throw e }
+                    val st = no.lionflow.app.model.ChargePower.record(app.api.parseStatus(v, raw))
                     _status.value = st
                     diag = "status ok"
                     lastRefresh = System.currentTimeMillis()

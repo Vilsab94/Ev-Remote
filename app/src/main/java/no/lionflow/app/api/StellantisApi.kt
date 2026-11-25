@@ -382,6 +382,16 @@ class StellantisApi(private val ctx: Context, private val secure: SecureStore, p
 
     suspend fun readStatus(vehicle: Vehicle): VehicleStatus = parseStatus(vehicle, status(vehicle))
 
+    /**
+     * A status with only the kind of energy filled in, for a car the server has no live status for: the app still
+     * opens and shows trips and service info.
+     */
+    fun blankStatus(v: Vehicle): JSONObject = JSONObject().put("energies", JSONArray().apply {
+        val m = v.motorization.lowercase()
+        if (m != "thermal" && m != "") put(JSONObject().put("type", "Electric"))
+        if (m == "thermal" || m == "hybrid") put(JSONObject().put("type", "Fuel"))
+    })
+
     fun parseTrips(vehicle: Vehicle, trips: List<JSONObject>): List<Trip> {
         val mildHybrid = isMildHybrid(vehicle)
         return trips.map { Trip.parse(it, mildHybrid) }
@@ -451,7 +461,7 @@ class StellantisApi(private val ctx: Context, private val secure: SecureStore, p
             do {
                 // "404 / 40400 No trip was found" just means no trips in this period (some cars say so on every call).
                 val j = try { synchronized(iso) { Triple(iso.format(java.util.Date(from)), to?.let { iso.format(java.util.Date(it)) }, next) }.let { (a, b, c) -> trips(v, a, b, c) } }
-                catch (e: ApiException) { if (e.code == 404) { if (n == 0) none.incrementAndGet(); break } else throw e }
+                catch (e: ApiException) { if (e.noData) { if (n == 0) none.incrementAndGet(); break } else throw e }
                 val arr = j.optJSONObject("_embedded")?.optJSONArray("trips")
                 var fresh = 0
                 if (arr != null) for (i in 0 until arr.length()) { val t = arr.optJSONObject(i) ?: continue; if (got.put(t.optString("id"), t) == null) fresh++ }
