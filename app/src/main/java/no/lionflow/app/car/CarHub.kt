@@ -303,11 +303,47 @@ object CarHub {
         return parts.joinToString(" · ").ifBlank { "LionFlow" }
     }
 
+    /** The car's names for doors and hatches, as people say them. */
+    private fun doorName(id: String): String = when (id.lowercase()) {
+        "driver" -> "Driver's door"
+        "passenger" -> "Passenger door"
+        "rearleft" -> "Rear left door"
+        "rearright" -> "Rear right door"
+        "trunk", "boot" -> "Boot"
+        "rearwindow" -> "Rear window"
+        "roofwindow" -> "Sunroof"
+        "hood", "bonnet" -> "Bonnet"
+        else -> id
+    }
+
+    /** Already translated. */
     fun doorsLine(st: VehicleStatus) = when {
-        st.openDoors.isNotEmpty() -> "Open: ${st.openDoors.joinToString(", ")}"
-        st.locked == true -> "Locked"
-        st.locked == false -> "Unlocked"
-        else -> "Unknown"
+        st.openDoors.isNotEmpty() -> no.lionflow.app.ui.l10n.tr("Open: {0}").replace("{0}", st.openDoors.joinToString(", ") { no.lionflow.app.ui.l10n.tr(doorName(it)) })
+        st.locked == true -> no.lionflow.app.ui.l10n.tr("Locked")
+        st.locked == false -> no.lionflow.app.ui.l10n.tr("Unlocked")
+        else -> no.lionflow.app.ui.l10n.tr("Unknown")
+    }
+
+    private var askedAt = 0L
+
+    /**
+     * The brand's server only has what the car last sent, which can be many minutes old (a door shown open that was
+     * closed long ago). While Android Auto runs the car is on anyway, so it is asked to send its state now and then,
+     * when what we have is more than 2 minutes old; the status is fetched again once it has answered.
+     */
+    fun askCar(ctx: Context) {
+        val app = app(ctx)
+        if (!app.remote.isSetUp) return
+        val now = System.currentTimeMillis()
+        val at = _status.value?.updatedAtMillis ?: 0L
+        if (now - at < 2 * 60_000L || now - askedAt < 3 * 60_000L) return
+        askedAt = now
+        scope.launch {
+            val sent = app.remote.preWake(minIntervalMs = 3 * 60_000L) {
+                scope.launch { delay(6_000L); refresh(ctx, force = true); delay(15_000L); refresh(ctx, force = true) }
+            }
+            if (sent) app.remote.addLog("Android Auto: asked the car for a fresh status")
+        }
     }
 
     fun updatedLine(): String {

@@ -1043,3 +1043,11 @@ For cars whose screen can't be touched (a dial or a touchpad instead). Android A
 {0} says no car is available on this account for the country you chose	{0} indique qu'aucune voiture n'est disponible sur ce compte pour le pays choisi	{0} meldet, dass für das gewählte Land kein Auto in diesem Konto verfügbar ist	{0} indica que no hay ningún coche en esta cuenta para el país elegido	{0} sier at ingen bil er tilgjengelig på denne kontoen for landet du valgte
 Line up the video picture with the car's sound	Synchroniser l'image vidéo avec le son de la voiture	Videobild mit dem Ton des Autos abstimmen	Sincronizar la imagen del vídeo con el sonido del coche	Synk videobildet med lyden i bilen
 YouTube and NRK in the car. Android Auto plays sound a little late. This holds the picture back by about 0.4 seconds so they match. Turn it off if playback looks choppy	YouTube et NRK dans la voiture. Android Auto joue le son avec un léger retard. L'image est retardée d'environ 0,4 seconde pour qu'ils correspondent. Désactivez si la lecture saccade	YouTube und NRK im Auto. Android Auto spielt den Ton etwas verzögert ab. Das Bild wird um etwa 0,4 Sekunden verzögert, damit beides passt. Ausschalten, wenn die Wiedergabe ruckelt	YouTube y NRK en el coche. Android Auto reproduce el sonido con un poco de retraso. La imagen se retrasa unos 0,4 segundos para que coincidan. Desactívalo si la reproducción va a saltos	YouTube og NRK i bilen. Android Auto spiller lyden litt forsinket. Dette holder bildet tilbake med ca. 0,4 sekunder så de passer. Slå av hvis avspillingen hakker
+Driver's door	Porte conducteur	Fahrertür	Puerta del conductor	Førerdøra
+Passenger door	Porte passager	Beifahrertür	Puerta del acompañante	Passasjerdøra
+Rear left door	Porte arrière gauche	Hintertür links	Puerta trasera izquierda	Bakdør venstre
+Rear right door	Porte arrière droite	Hintertür rechts	Puerta trasera derecha	Bakdør høyre
+Boot	Coffre	Kofferraum	Maletero	Bagasjerommet
+Rear window	Lunette arrière	Heckscheibe	Luneta trasera	Bakruta
+Sunroof	Toit ouvrant	Schiebedach	Techo solar	Soltaket
+Bonnet	Capot	Motorhaube	Capó	Panseret

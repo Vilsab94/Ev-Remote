@@ -32,7 +32,7 @@ internal class CarInfoScreen(ctx: CarContext, ui: CarUi) : DrawnScreen(ctx, ui) 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch { combine(CarHub.status, CarHub.message, CarHub.loading) { _, _, _ -> Unit }.collect { redraw() } }
-                launch { while (true) { CarHub.refresh(carContext, force = true); delay(30_000L) } }
+                launch { while (true) { CarHub.refresh(carContext, force = true); CarHub.askCar(carContext); delay(30_000L) } }
             }
         }
     }
@@ -86,7 +86,7 @@ internal class CarInfoScreen(ctx: CarContext, ui: CarUi) : DrawnScreen(ctx, ui) 
         }
         add("Odometer", st.odometerKm?.let { fmtDistance(it, s) })
         add("Next service", listOfNotNull(st.kmToService?.let { fmtDistance(it, s) }, st.daysToService?.let { tr("{0} days").replace("{0}", "${it.roundToInt()}") }).joinToString(" · ").ifEmpty { null })
-        add("Doors", tr(CarHub.doorsLine(st)), if (st.openDoors.isNotEmpty() || st.locked == false) Tone.WARN else Tone.TEXT)
+        add("Doors", CarHub.doorsLine(st), if (st.openDoors.isNotEmpty() || st.locked == false) Tone.WARN else Tone.TEXT)
         add("Outside", st.outsideTempC?.let { fmtTemp(it, s) })
         add("Pre-heating", tr(if (st.preconditioningOn) "On" else "Off"), if (st.preconditioningOn) Tone.WARN else Tone.TEXT)
         // The 12 V battery, when the car shares it (as volts, or as a level).

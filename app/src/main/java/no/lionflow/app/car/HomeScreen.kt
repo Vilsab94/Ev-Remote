@@ -65,7 +65,7 @@ internal class HomeScreen(ctx: CarContext, ui: CarUi) : DrawnScreen(ctx, ui) {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch { combine(CarHub.status, CarHub.message, CarHub.loading, CarHub.trips) { _, _, _, _ -> Unit }.collect { redraw() } }
                 launch { SavedRoutes.changes.collect { redraw() } }
-                launch { while (true) { delay(30_000L); CarHub.refresh(carContext, force = true) } }   // fresh numbers while it shows
+                launch { while (true) { delay(30_000L); CarHub.refresh(carContext, force = true); CarHub.askCar(carContext) } }   // fresh numbers while it shows
                 launch { while (true) { delay(15_000L); redraw() } }                                  // keeps "reported … ago" right
             }
         }
@@ -77,6 +77,7 @@ internal class HomeScreen(ctx: CarContext, ui: CarUi) : DrawnScreen(ctx, ui) {
     override fun shown() {
         several = Garage.hasSeveral(CarHub.app(carContext))
         CarHub.refresh(carContext)
+        CarHub.askCar(carContext)
         CarHub.loadTrips(carContext)
         // Whether the NRK button belongs here is looked up in the background the first time.
         Where.warm(carContext) { invalidate() }
@@ -141,7 +142,7 @@ internal class HomeScreen(ctx: CarContext, ui: CarUi) : DrawnScreen(ctx, ui) {
         val pct = if (fuelOnly) st.fuelPct ?: st.batteryPct else st.batteryPct
         val range = if (fuelOnly) st.fuelRangeKm ?: st.rangeKm else st.rangeKm
         val lines = ArrayList<HomeModel.Line>()
-        val doors = HomeModel.Line(R.drawable.ic_car_lock, tr(CarHub.doorsLine(st)), if (st.openDoors.isNotEmpty() || st.locked == false) Tone.WARN else Tone.TEXT)
+        val doors = HomeModel.Line(R.drawable.ic_car_lock, CarHub.doorsLine(st), if (st.openDoors.isNotEmpty() || st.locked == false) Tone.WARN else Tone.TEXT)
         if (fuelOnly) lines += doors
         else when {
             st.isCharging -> {

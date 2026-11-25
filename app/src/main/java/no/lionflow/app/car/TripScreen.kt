@@ -70,7 +70,7 @@ internal class TripScreen private constructor(ctx: CarContext, ui: CarUi, privat
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch { combine(CarHub.status, CarHub.message, CarHub.loading) { _, _, _ -> Unit }.collect { redraw() } }
-                launch { while (true) { CarHub.refresh(carContext, force = true); delay(10_000L) } }
+                launch { while (true) { CarHub.refresh(carContext, force = true); CarHub.askCar(carContext); delay(10_000L) } }
                 // The phone's GPS and the car's speed: the car's place on the route and the speed follow live.
                 launch { combine(ui.guard.fix, ui.guard.speed) { _, _ -> Unit }.collect { redraw() } }
                 launch { while (true) { delay(1_000L); ui.guard.update() } }
