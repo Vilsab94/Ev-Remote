@@ -34,7 +34,7 @@ object Updater {
         installer == "com.android.vending"
     } catch (_: Exception) { false }
 
-    private const val LATEST = "https://api.github.com/repos/thocubeat/lionflow/releases/latest"
+    private const val LATEST = "https://api.github.com/repos/Vilsab94/Ev-Remote/releases/latest"
 
     suspend fun latest(): Release? {
         val req = Request.Builder().url(LATEST)
@@ -49,22 +49,22 @@ object Updater {
         for (i in 0 until assets.length()) {
             val a = assets.optJSONObject(i) ?: continue
             // The versioned file; the plain "LionFlow.apk" is left for first-time downloads (that's what the download count shows).
-            if (a.optString("name").matches(Regex("LionFlow-.*\\.apk"))) { url = a.optString("browser_download_url"); break }
+            if (a.optString("name").matches(Regex("EvRemote-.*\\.apk"))) { url = a.optString("browser_download_url"); break }
         }
-        return Release(tag, code, url ?: return null, j.optString("body"), j.optString("name").removePrefix("LionFlow ").ifBlank { tag.removePrefix("v") })
+        return Release(tag, code, url ?: return null, j.optString("body"), j.optString("name").removePrefix("EV Remote ").ifBlank { tag.removePrefix("v") })
     }
 
     fun isNewer(r: Release) = r.versionCode > BuildConfig.VERSION_CODE
 
     /** The latest releases (newest first), for the changelog. Notes are the release text without trailer lines. */
     suspend fun releases(): List<Release> {
-        val req = Request.Builder().url("https://api.github.com/repos/thocubeat/lionflow/releases?per_page=60")
+        val req = Request.Builder().url("https://api.github.com/repos/Vilsab94/Ev-Remote/releases?per_page=60")
             .header("Accept", "application/vnd.github+json").header("User-Agent", Http.USER_AGENT).get().build()
         val arr = Http.json(req) as? org.json.JSONArray ?: return emptyList()
         return (0 until arr.length()).mapNotNull { arr.optJSONObject(it) }.filter { !it.optBoolean("draft") }.mapNotNull { j ->
             val tag = j.optString("tag_name")
             val code = tag.substringAfterLast('.').toIntOrNull() ?: return@mapNotNull null
-            Release(tag, code, "", cleanNotes(j.optString("body")), j.optString("name").removePrefix("LionFlow ").ifBlank { tag.removePrefix("v") })
+            Release(tag, code, "", cleanNotes(j.optString("body")), j.optString("name").removePrefix("EV Remote ").ifBlank { tag.removePrefix("v") })
         }.sortedByDescending { it.versionCode }
     }
 
@@ -75,7 +75,7 @@ object Updater {
     suspend fun download(ctx: Context, r: Release, onProgress: (Int) -> Unit): File = withContext(Dispatchers.IO) {
         val dir = File(ctx.cacheDir, "updates").apply { mkdirs() }
         dir.listFiles()?.forEach { it.delete() }
-        val f = File(dir, "LionFlow-${r.tag}.apk")
+        val f = File(dir, "EvRemote-${r.tag}.apk")
         Http.client.newCall(Request.Builder().url(r.apkUrl).header("User-Agent", Http.USER_AGENT).build()).execute().use { resp ->
             if (!resp.isSuccessful) throw no.lionflow.app.api.ApiException(resp.code, "Download failed (HTTP ${resp.code})")
             val body = resp.body ?: throw IllegalStateException("Empty download")

@@ -961,6 +961,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      * download counter for that file is the "active devices" number in the README. Nothing is sent about you or the phone.
      */
     private fun countActiveDevice() {
+        if (true) return // EV Remote: no usage ping
         val day = (System.currentTimeMillis() / 86_400_000L).toString()
         if (settings.raw("lastPingDay") == day) return
         settings.setRaw("lastPingDay", day)

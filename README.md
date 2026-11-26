@@ -1,3 +1,13 @@
+# EV Remote
+
+Personal build of [LionFlow](https://github.com/thocubeat/lionflow) (GPL-3.0) for an Opel Mokka-e.
+Download: **[EvRemote.apk](https://github.com/Vilsab94/Ev-Remote/releases/latest/download/EvRemote.apk)**.
+See `UPSTREAM.md` for what is changed and which LionFlow version it is based on.
+
+---
+
+Original LionFlow README follows.
+
 # LionFlow
 
 ![Downloads](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/thocubeat/lionflow/stats/downloads.json) ![Active users (last 24h)](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/thocubeat/lionflow/stats/devices.json)
