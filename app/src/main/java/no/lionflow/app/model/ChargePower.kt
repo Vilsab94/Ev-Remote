@@ -45,22 +45,29 @@ object ChargePower {
     internal fun store(): SharedPreferences? = prefs
     internal fun key(name: String) = k(name)
 
-    /** EV Remote: the battery size from Settings (default 43 kWh), or null when none is set. */
-    fun userKwh(): Double? = settings?.value?.batteryKwh?.takeIf { it > 0 }
+    /** EV Remote: usable capacity of the new battery from Settings (default 46 kWh), or null when none is set. */
+    fun newKwh(): Double? = settings?.value?.batteryKwh?.takeIf { it > 0 }
+
+    /** EV Remote: the last SoH the car sent (health.capacity), kept for reports without it; null if never received. */
+    fun sohPct(): Double? = prefs?.getFloat(k("soh"), 0f)?.toDouble()?.takeIf { it > 0 }
+
+    /** EV Remote: usable capacity now = new battery × SoH (100 % until the car has sent one). */
+    fun userKwh(): Double? = newKwh()?.let { it * (sohPct() ?: 100.0) / 100.0 }
 
     /**
      * EV Remote: the server's battery figures are wrong for some cars (Mokka-e: capacity 32.96 kWh, real ~43 kWh),
-     * while the level % is right. With a battery size set, the energy in the battery is level % × that size, so
-     * charging kW, the charge log and trips logged from the car all use it. The server's capacity is remembered
-     * to correct the trip energy the server reports (see [tripFactor]).
+     * while the level % is right. The energy in the battery becomes level % × [userKwh], so charging kW, time to
+     * the limit, the charge log and trips logged from the car all use it. The server's capacity is remembered to
+     * correct the trip energy the server reports (see [tripFactor]).
      */
     private fun applyBatterySize(st: VehicleStatus): VehicleStatus {
-        val b = userKwh() ?: return st
         if (st.energyType != "Electric") return st
-        st.capacityKwh?.let { cap ->
-            prefs?.let { p -> if (p.getFloat(k("srvCap"), 0f) != cap.toFloat()) p.edit().putFloat(k("srvCap"), cap.toFloat()).apply() }
-        }
-        return st.copy(residualKwh = st.batteryPct?.let { it / 100.0 * b }, capacityKwh = b)
+        val p = prefs
+        st.batteryHealthPct?.let { soh -> if (p != null && p.getFloat(k("soh"), 0f) != soh.toFloat()) p.edit().putFloat(k("soh"), soh.toFloat()).apply() }
+        st.capacityKwh?.let { cap -> if (p != null && p.getFloat(k("srvCap"), 0f) != cap.toFloat()) p.edit().putFloat(k("srvCap"), cap.toFloat()).apply() }
+        val shown = st.copy(batteryHealthPct = st.batteryHealthPct ?: sohPct())
+        val b = userKwh() ?: return shown
+        return shown.copy(residualKwh = st.batteryPct?.let { it / 100.0 * b }, capacityKwh = b)
     }
 
     /** EV Remote: server trip energy is level change × the server's capacity; this factor makes it × the set battery size. */
@@ -75,7 +82,7 @@ object ChargePower {
      * else a default for the car type (plug-in hybrids ~11.5 kWh, electric E-5008 73 kWh).
      */
     fun usableKwh(st: VehicleStatus): Double =
-        settings?.value?.batteryKwh?.takeIf { it > 0 }
+        userKwh()
             ?: st.capacityKwh?.takeIf { it > 1 }
             ?: st.residualKwh?.let { r -> st.batteryPct?.takeIf { it >= 10 }?.let { r / (it / 100.0) } }?.takeIf { it in 5.0..150.0 }
             ?: if (st.energyType == "Hybrid") 11.5 else 73.0

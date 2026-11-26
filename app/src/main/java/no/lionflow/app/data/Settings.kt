@@ -7,8 +7,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-/** EV Remote: usable battery of an Opel Mokka-e 2022 (46 kWh × ~93 % health). The server reports ~33 kWh. */
-const val DEFAULT_BATTERY_KWH = 43.0
+/** EV Remote: usable capacity of a new Opel Mokka-e battery. Usable now = this × SoH (see ChargePower.userKwh). */
+const val DEFAULT_BATTERY_KWH = 46.0
 
 data class AppSettings(
     val theme: String = "dark",          // dark | light | system
@@ -63,7 +63,7 @@ data class AppSettings(
     val routeTracking: Boolean = false, // record routes with the phone's GPS while connected to the car over Bluetooth
     val routeBtAddr: String = "",       // the car's Bluetooth address
     val routeBtName: String = "",
-    val batteryKwh: Double = DEFAULT_BATTERY_KWH, // EV Remote: usable battery size, used instead of the server's residual/capacity everywhere
+    val batteryKwh: Double = DEFAULT_BATTERY_KWH, // EV Remote: usable capacity of the NEW battery; × SoH replaces the server's residual/capacity everywhere
     /** Home screens (see HomeLayout): the phone's cards in the user's order, and what is hidden on each screen. */
     val homeOrder: String = "",
     val homeHidden: String = HomeLayout.PHONE_HIDDEN,
@@ -118,7 +118,8 @@ class SettingsStore internal constructor(private val p: SharedPreferences) {
         carVideo = p.getBoolean("carVideo", true),
         carVideoSync = p.getBoolean("carVideoSync", true),
         carPlain = p.getBoolean("carPlain", false),
-        batteryKwh = p.getFloat("batteryKwh", 0f).toDouble().takeIf { it > 0 } ?: DEFAULT_BATTERY_KWH,
+        // New key: the old "batteryKwh" meant usable now (0 = from the car), this one is the new battery's size.
+        batteryKwh = p.getFloat("batteryNewKwh", 0f).toDouble().takeIf { it > 0 } ?: DEFAULT_BATTERY_KWH,
         chargeLimitOn = p.getBoolean("chargeLimitOn", false),
         chargeLimitPct = p.getInt("chargeLimitPct", 80),
         chargeForce = p.getBoolean("chargeForce", false),
@@ -185,7 +186,7 @@ class SettingsStore internal constructor(private val p: SharedPreferences) {
             .putBoolean("carVideo", s.carVideo)
             .putBoolean("carVideoSync", s.carVideoSync)
             .putBoolean("carPlain", s.carPlain)
-            .putFloat("batteryKwh", s.batteryKwh.toFloat())
+            .putFloat("batteryNewKwh", s.batteryKwh.toFloat())
             .putBoolean("chargeLimitOn", s.chargeLimitOn)
             .putInt("chargeLimitPct", s.chargeLimitPct)
             .putBoolean("chargeForce", s.chargeForce)

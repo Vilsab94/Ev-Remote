@@ -149,7 +149,8 @@ data class VehicleStatus(
                 remainingMinutes = remaining,
                 nextDelayedHour = next?.first,
                 nextDelayedMinute = next?.second,
-                batteryHealthPct = health?.num("capacity") ?: health?.num("resistance"),
+                // EV Remote: SoH only from health.capacity; "resistance" is not a state of health.
+                batteryHealthPct = health?.num("capacity")?.takeIf { it > 0 && it <= 110 },
                 odometerKm = j.optJSONObject("odometer")?.num("mileage"),
                 locked = if (lockedStates.isEmpty()) null else lockedStates.any { it.contains("Locked") && !it.contains("Unlocked") },
                 openDoors = openings,

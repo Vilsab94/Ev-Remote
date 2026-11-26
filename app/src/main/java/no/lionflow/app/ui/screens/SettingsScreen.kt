@@ -175,7 +175,7 @@ fun SettingsScreen(vm: AppViewModel, ui: UiState, s: AppSettings) {
             }
             if (showChargingSettings) {
                 Divider()
-                LinkRow("Battery size", "${kwhText(s.batteryKwh)} kWh usable · used for trip energy, charging kW and the charge log", LfIcons.Bolt, last = true) { editBattery = true }
+                LinkRow("Battery size", batteryLine(s.batteryKwh), LfIcons.Bolt, last = true) { editBattery = true }
             }
         }
 
@@ -354,7 +354,7 @@ fun SettingsScreen(vm: AppViewModel, ui: UiState, s: AppSettings) {
             title = { Text("Battery size", color = c.text) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Usable capacity in kWh. Used instead of the energy figures the car reports: trip kWh and kWh/100 km, charging kW and the charge log. Leave empty for 43 kWh (Opel Mokka-e 2022: 46 kWh × ~93 % health).", style = Type.small, color = c.muted)
+                    Text("Usable capacity of the battery when NEW, in kWh. EV Remote multiplies it by the battery health (SoH) the car reports and uses the result instead of the car's energy figures: trip kWh and kWh/100 km, charging kW, time to the limit and the charge log. Leave empty for 46 kWh (Opel Mokka-e).", style = Type.small, color = c.muted)
                     OutlinedTextField(txt, { txt = it.filter { ch -> ch.isDigit() || ch == '.' }.take(5) }, singleLine = true, label = { Text("kWh") }, colors = fieldColors,
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal))
                 }
@@ -557,5 +557,15 @@ private fun FeedbackDialog(vm: AppViewModel, fieldColors: androidx.compose.mater
     )
 }
 
-/** EV Remote: 43.0 → "43", 42.5 → "42.5". */
+/** EV Remote: 46.0 → "46", 42.5 → "42.5" (for the input field). */
 private fun kwhText(v: Double): String = if (v % 1.0 == 0.0) v.toInt().toString() else String.format(java.util.Locale.US, "%.1f", v)
+
+/** EV Remote: "46 kWh × SoH 93 % = 42,8 kWh usable" (numbers in the phone's format). */
+private fun batteryLine(newKwh: Double): String {
+    val loc = java.util.Locale.getDefault()
+    fun n(v: Double) = if (v % 1.0 == 0.0) v.toInt().toString() else String.format(loc, "%.1f", v)
+    val soh = no.lionflow.app.model.ChargePower.sohPct()
+    val usable = newKwh * (soh ?: 100.0) / 100.0
+    return "${n(newKwh)} kWh × SoH ${n(Math.round((soh ?: 100.0) * 10) / 10.0)} %" +
+        (if (soh == null) " (not reported yet)" else "") + " = ${String.format(loc, "%.1f", usable)} kWh usable"
+}

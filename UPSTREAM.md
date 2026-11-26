@@ -15,12 +15,17 @@ customised for an Opel Mokka-e. All credit for the original app goes to its auth
   Wordmark "Lion"+"Flow" → "EV"+" Remote" (accent colour) in `Wordmark()` (Components.kt) and two places
   in Home.kt; widget title in `layout/widget_car.xml`; Wear `app_name`/`no_phone` in all `wear/.../values*/strings.xml`;
   shared file names `evremote-backup.zip`, `evremote-trips.csv`. Left as is: User-Agent/API client names, wear paths.
-- Battery size (PLAN.md item 1): `AppSettings.batteryKwh` defaults to `DEFAULT_BATTERY_KWH` = 43 (Settings.kt; 0 or
-  unset also means 43, no "automatic" any more). `ChargePower.applyBatterySize()` in `record()` replaces the server's
-  `residualKwh`/`capacityKwh` with level % × battery size for electric cars, so charging kW, the charge log and
-  trips logged from the car use it. Server trips: `Trip.parse()` multiplies kWh and kWh/100 km by
-  `ChargePower.tripFactor()` = battery size / server capacity (remembered as `srvCap`). `ChargeLog` always uses
-  Δ% × battery size (also re-computed for saved sessions on load); `EstimatedHealth` is hidden.
+- Battery size (PLAN.md item 1): `AppSettings.batteryKwh` = usable capacity of the NEW battery, default
+  `DEFAULT_BATTERY_KWH` = 46 (Settings.kt, pref key `batteryNewKwh`; no "automatic" any more).
+  Usable now = new × SoH: `ChargePower.userKwh()`. SoH comes only from `battery.health.capacity`
+  (`VehicleStatus.batteryHealthPct`, "resistance" no longer used); the last one is saved (`soh` per VIN) and used
+  when the car leaves it out; 100 % until one has been received. `ChargePower.applyBatterySize()` in `record()`
+  replaces the server's `residualKwh`/`capacityKwh` with level % × usable for electric cars and fills a missing
+  SoH from the saved one, so charging kW, time-to-limit estimates (`usableKwh()`), the charge log and trips
+  logged from the car use it. Server trips: `Trip.parse()` multiplies kWh and kWh/100 km by
+  `ChargePower.tripFactor()` = usable / server capacity (remembered as `srvCap`). `ChargeLog` always uses
+  Δ% × usable (also re-computed for saved sessions on load); `EstimatedHealth` is hidden. Settings shows
+  "46 kWh × SoH 93 % = 42,8 kWh usable" (`batteryLine()` in SettingsScreen.kt).
 - Logo: lightning bolt (#F5C400, outline #1A1A1A) on white – `ic_lion_foreground.xml`,
   `ic_lion_mono.xml`, `ic_notification.xml`, `ic_w_lion.xml`, `LionLogo()` in Components.kt
   (file/function names kept). `launcher_bg` = white.
