@@ -61,6 +61,17 @@ data class AppSettings(
     val routeBtAddr: String = "",       // the car's Bluetooth address
     val routeBtName: String = "",
     val batteryKwh: Double = 0.0,       // usable battery size for kW maths; 0 = use what the car reports (else 73)
+    /** Home screens (see HomeLayout): the phone's cards in the user's order, and what is hidden on each screen. */
+    val homeOrder: String = "",
+    val homeHidden: String = HomeLayout.PHONE_HIDDEN,
+    val watchHidden: String = HomeLayout.WATCH_HIDDEN,
+    val carHidden: String = HomeLayout.CAR_HIDDEN,
+    /** Notes at the top of Home: the car is being driven, privacy mode is on, fog lights left on. */
+    val bannerDriving: Boolean = true,
+    val bannerPrivacy: Boolean = true,
+    val bannerFog: Boolean = true,
+    val fuelPrice: Double = 0.0,        // price per litre, in the currency used for charging costs; 0 = not set
+    val tankLiters: Double = 0.0,       // tank size for fill-up litres; 0 = worked out from the fuel gauge
 )
 
 /** Plain (non-secret) preferences, exposed as a StateFlow so the UI updates instantly. */
@@ -117,6 +128,15 @@ class SettingsStore internal constructor(private val p: SharedPreferences) {
         serviceMonths = p.getInt("serviceMonths", 0),
         routeBtAddr = p.getString("routeBtAddr", "") ?: "",
         routeBtName = p.getString("routeBtName", "") ?: "",
+        homeOrder = p.getString("homeOrder", "") ?: "",
+        homeHidden = p.getString("homeHidden", HomeLayout.PHONE_HIDDEN) ?: HomeLayout.PHONE_HIDDEN,
+        watchHidden = p.getString("watchHidden", HomeLayout.WATCH_HIDDEN) ?: HomeLayout.WATCH_HIDDEN,
+        carHidden = p.getString("carHidden", HomeLayout.CAR_HIDDEN) ?: HomeLayout.CAR_HIDDEN,
+        bannerDriving = p.getBoolean("bannerDriving", true),
+        bannerPrivacy = p.getBoolean("bannerPrivacy", true),
+        bannerFog = p.getBoolean("bannerFog", true),
+        fuelPrice = p.getFloat("fuelPrice", 0f).toDouble(),
+        tankLiters = p.getFloat("tankLiters", 0f).toDouble(),
     )
 
     fun mildHybridOverride(vin: String): Boolean? =
@@ -175,6 +195,15 @@ class SettingsStore internal constructor(private val p: SharedPreferences) {
             .putInt("serviceMonths", s.serviceMonths)
             .putString("routeBtAddr", s.routeBtAddr)
             .putString("routeBtName", s.routeBtName)
+            .putString("homeOrder", s.homeOrder)
+            .putString("homeHidden", s.homeHidden)
+            .putString("watchHidden", s.watchHidden)
+            .putString("carHidden", s.carHidden)
+            .putBoolean("bannerDriving", s.bannerDriving)
+            .putBoolean("bannerPrivacy", s.bannerPrivacy)
+            .putBoolean("bannerFog", s.bannerFog)
+            .putFloat("fuelPrice", s.fuelPrice.toFloat())
+            .putFloat("tankLiters", s.tankLiters.toFloat())
             .apply()
         no.lionflow.app.model.Brands.current = no.lionflow.app.model.Brand.of(s.brand)
         _state.value = s

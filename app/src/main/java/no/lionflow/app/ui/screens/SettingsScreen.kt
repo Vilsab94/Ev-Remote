@@ -69,6 +69,8 @@ fun SettingsScreen(vm: AppViewModel, ui: UiState, s: AppSettings) {
     var showLog by remember { mutableStateOf(false) }
     var showFeedback by remember { mutableStateOf(false) }
     var showChanges by remember { mutableStateOf(false) }
+    var showCarData by remember { mutableStateOf(false) }
+    var editHome by remember { mutableStateOf<String?>(null) }
     var askRestore by remember { mutableStateOf<android.net.Uri?>(null) }
     val restorer = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> if (uri != null) askRestore = uri }
     val importer = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -152,6 +154,17 @@ fun SettingsScreen(vm: AppViewModel, ui: UiState, s: AppSettings) {
                     .padding(horizontal = 16.dp, vertical = 12.dp))
         }
 
+        SectionTitle("Home screens")
+        GroupCard {
+            LinkRow("Phone", "Choose the cards on Home and their order", LfIcons.Home) { editHome = "phone" }
+            LinkRow("Watch", "Choose what the watch shows", LfIcons.Gear) { editHome = "watch" }
+            LinkRow("Android Auto", "Choose the tiles and lines on the start screen in the car", LfIcons.Car) { editHome = "car" }
+            ToggleRow("Note when the car is being driven", "At the top of Home", s.bannerDriving) { v -> set { it.copy(bannerDriving = v) } }
+            ToggleRow("Note when privacy mode is on", "It blocks remote commands and can hide where the car is", s.bannerPrivacy) { v -> set { it.copy(bannerPrivacy = v) } }
+            ToggleRow("Note when fog lights are left on", "While the car is parked", s.bannerFog, showDivider = false) { v -> set { it.copy(bannerFog = v) } }
+        }
+        editHome?.let { target -> HomeEditor(vm, ui, s, target) { editHome = null } }
+
         SectionTitle("Units")
         GroupCard {
             SegRow("Distance", listOf("km" to "km", "mi" to "miles"), s.distanceUnit) { v -> set { it.copy(distanceUnit = v) } }
@@ -197,6 +210,7 @@ fun SettingsScreen(vm: AppViewModel, ui: UiState, s: AppSettings) {
 
         SectionTitle("Driving data")
         GroupCard {
+            LinkRow("All car data", "Every value the car reports, and the raw data", LfIcons.Car) { showCarData = true }
             LinkRow("Back up app data", "Settings, saved trips, tags and logs in one file, to move to a new install", LfIcons.Download) {
                 try { platform.share(no.lionflow.app.model.Backup.export(ctx), "application/zip") } catch (_: Exception) { vm.toastText("Couldn't make the backup") }
             }
@@ -213,13 +227,15 @@ fun SettingsScreen(vm: AppViewModel, ui: UiState, s: AppSettings) {
             ToggleRow("Tag similar trips automatically", "A trip with about the same distance and average speed as one you tagged gets the same tag", s.autoTagTrips) { v -> vm.setAutoTag(v) }
             if (s.autoTagTrips) { Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) { AutoRouteOption(vm, s) }; Divider() }
             ToggleRow("Auto-refresh when open", "When the app opens or is in use — at most every 5 min", s.autoRefresh) { v -> set { it.copy(autoRefresh = v) } }
-            ToggleRow("Wake car when app opens", "Commands go through faster. Uses a little of the 12 V battery; at most every 10 min", s.wakeOnOpen) { v -> set { it.copy(wakeOnOpen = v) } }
+            ToggleRow("Wake car when app opens", "Commands go through faster. Uses a little of the 12 V battery; at most every 10 min. When this is off, the car is only woken when you tap refresh", s.wakeOnOpen) { v -> set { it.copy(wakeOnOpen = v) } }
             val appCtx = androidx.compose.ui.platform.LocalContext.current.applicationContext as no.lionflow.app.LionFlowApp
             DropdownRow("Wake car automatically", "While the app is closed, widget included. Each wake uses a little of the 12 V battery and shows a small notice. The widget's refresh button always wakes it.",
                 listOf(0 to "Never", 1 to "Every hour", 3 to "Every 3 hours", 6 to "Every 6 hours", 12 to "Every 12 hours", 24 to "Once a day"), s.bgWakeHours) { v ->
                 set { it.copy(bgWakeHours = v) }; no.lionflow.app.work.Waker.schedule(appCtx)
             }
         }
+
+        if (showCarData) CarDataSheet(vm, ui, s) { showCarData = false }
 
         RouteTrackingSettings(vm, s)
 

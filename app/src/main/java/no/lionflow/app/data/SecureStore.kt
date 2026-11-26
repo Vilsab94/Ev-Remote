@@ -38,20 +38,26 @@ class SecureStore(context: Context) {
         return gen.generateKey()
     }
 
+    /**
+     * [now] writes to disk before returning. For values that can't be had again if the app is killed a moment later:
+     * the carmaker hands out a new refresh token at every renewal and the old one dies at once.
+     */
     @Synchronized
-    fun put(name: String, value: String?) {
+    fun put(name: String, value: String?, prof: String = profile, now: Boolean = false) {
+        val e = prefs.edit()
         if (value == null) {
-            prefs.edit().remove(k(name)).apply()
-            return
+            e.remove(k(name, prof))
+        } else {
+            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+            cipher.init(Cipher.ENCRYPT_MODE, key())
+            val iv = cipher.iv
+            val enc = cipher.doFinal(value.toByteArray(Charsets.UTF_8))
+            val out = ByteArray(iv.size + enc.size)
+            System.arraycopy(iv, 0, out, 0, iv.size)
+            System.arraycopy(enc, 0, out, iv.size, enc.size)
+            e.putString(k(name, prof), Base64.encodeToString(out, Base64.NO_WRAP))
         }
-        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.ENCRYPT_MODE, key())
-        val iv = cipher.iv
-        val enc = cipher.doFinal(value.toByteArray(Charsets.UTF_8))
-        val out = ByteArray(iv.size + enc.size)
-        System.arraycopy(iv, 0, out, 0, iv.size)
-        System.arraycopy(enc, 0, out, iv.size, enc.size)
-        prefs.edit().putString(k(name), Base64.encodeToString(out, Base64.NO_WRAP)).apply()
+        if (now) e.commit() else e.apply()
     }
 
     @Synchronized

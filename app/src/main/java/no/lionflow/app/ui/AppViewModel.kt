@@ -82,6 +82,8 @@ data class UiState(
     val needsInstallPermission: Boolean = false,
     val updateDismissed: Boolean = false,
     val vehicles: List<no.lionflow.app.api.Vehicle> = emptyList(),
+    /** Warnings the car itself reports (tyre pressure, a lamp …). */
+    val alerts: List<no.lionflow.app.model.CarAlert> = emptyList(),
 )
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
@@ -244,7 +246,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         no.lionflow.app.model.ChargeLog.setVin(v.vin)
         no.lionflow.app.model.ChargePower.setVin(v.vin)
         no.lionflow.app.widget.WidgetData.clear(getApplication())
-        _ui.update { it.copy(vehicle = v, status = null, photoPath = settings.photoFor(v.vin)) }
+        _ui.update { it.copy(vehicle = v, status = null, alerts = emptyList(), photoPath = settings.photoFor(v.vin)) }
         refresh()
     }
 
@@ -626,6 +628,43 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             updated
         }
 
+    /**
+     * The refresh button: reads the carmaker's server now, and (with remote control set up) asks the car itself for
+     * a fresh report, then reads again when it has answered. This is the manual way to wake the car; "Wake car when
+     * app opens" in Settings does the same by itself.
+     */
+    fun refreshNow() {
+        refresh()
+        if (isDemo || !remote.isSetUp || _ui.value.status?.moving == true) return
+        viewModelScope.launch {
+            remote.preWake(minIntervalMs = 60_000, force = true) { viewModelScope.launch { delay(4_000); refresh() } }
+        }
+    }
+
+    private var alertsAt = 0L
+
+    /** Warnings from the car: optional, so a failure here never disturbs the refresh. At most every 10 minutes. */
+    private fun loadAlerts(v: Vehicle) {
+        val now = System.currentTimeMillis()
+        if (v.vin in alertsOff || (now - alertsAt < 10 * 60_000 && v.vin == alertsVin)) return
+        alertsAt = now; alertsVin = v.vin
+        val profile = api.profile
+        viewModelScope.launch {
+            try {
+                val list = no.lionflow.app.model.CarAlert.parse(api.alerts(v))
+                if (profile == api.profile && _ui.value.vehicle?.vin == v.vin) _ui.update { it.copy(alerts = list) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                remote.addLog("warnings: " + no.lionflow.app.api.Http.describe(e))
+                // A car or account the server refuses this for isn't asked again until the app restarts.
+                if (e is no.lionflow.app.api.ApiException && e.code in 400..499) alertsOff.add(v.vin)
+            }
+        }
+    }
+    private var alertsVin = ""
+    private val alertsOff = HashSet<String>()
+
     fun refresh() {
         if (_ui.value.refreshing) return
         if (isDemo) {
@@ -663,6 +702,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                         lastRefresh = now, now = now, tab = if (Caps.tab(it.tab, st)) it.tab else Tab.Home)
                 }
                 if (_ui.value.trips.isEmpty() && !_ui.value.tripsLoading) loadTrips()
+                if (!missing) loadAlerts(selected)
                 if (Caps.battery(st) && !st.preconditioningOn && no.lionflow.app.work.ChargeLimit.due(getApplication(), st)) viewModelScope.launch {
                     no.lionflow.app.work.ChargeLimit.check(getApplication(), st)?.let { toast(it); kotlinx.coroutines.delay(4000); refresh() }
                 }

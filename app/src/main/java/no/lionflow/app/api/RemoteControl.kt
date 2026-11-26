@@ -358,11 +358,12 @@ class RemoteControl(private val api: StellantisApi, private val secure: SecureSt
      * real command arrives. Skipped if a wake-up (or any command) went out within [minIntervalMs].
      * [onAwake] runs when the car confirms it is awake.
      */
-    suspend fun preWake(minIntervalMs: Long, onAwake: () -> Unit = {}): Boolean {
+    suspend fun preWake(minIntervalMs: Long, force: Boolean = false, onAwake: () -> Unit = {}): Boolean {
         if (!isSetUp) return false
         val now = System.currentTimeMillis()
         if (now - lastWake < minIntervalMs) return false
-        if (now < wakePauseUntil) return false
+        // [force]: the user asked for it (the refresh button), so the pause after unanswered wake-ups doesn't apply.
+        if (!force && now < wakePauseUntil) return false
         lastWake = now
         return try {
             lock.withLock {

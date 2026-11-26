@@ -56,6 +56,7 @@ object Demo {
             programs = programs, lat = HOME_LAT, lon = HOME_LON, ignition = "Stop", moving = false,
             updatedAtMillis = now - 2 * 60_000, kmToService = 11_588.0, daysToService = 270.0,
             residualKwh = battery / 100 * 73, capacityKwh = 73.0, energyAtMillis = now, chargeType = chargeType,
+            heading = 118.0, privacyState = "None",
         )
     }
 

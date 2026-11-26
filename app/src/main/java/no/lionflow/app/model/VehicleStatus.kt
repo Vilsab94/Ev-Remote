@@ -47,8 +47,16 @@ data class VehicleStatus(
     val fuelPct: Double? = null,
     val fuelRangeKm: Double? = null,
     val isMildHybrid: Boolean = false,
+    // More of what the car reports. Surfacing these came from lionCar, the iPhone port of LionFlow.
+    val heading: Double? = null,                    // the way the car points, in degrees (0 = north)
+    val privacyState: String? = null,               // None | Geolocation | Full
+    val fogLightsOn: List<String> = emptyList(),    // "Front", "Rear" … for each fog light that is on
+    val alarmOn: Boolean? = null,
+    val fuelTotalRaw: Double? = null,               // the car's lifetime fuel counter, in its own (undocumented) unit
 ) {
     val isCharging: Boolean get() = chargingStatus == "InProgress"
+    /** Privacy mode in the car: it blocks remote commands and can hide the position. */
+    val privacyOn: Boolean get() = !privacyState.isNullOrBlank() && privacyState != "None"
 
     /** The program block the remote-preconditioning command expects. */
     fun programsJson(): JSONObject = programsJsonOf(programs)
@@ -158,6 +166,13 @@ data class VehicleStatus(
                 residualKwh = res,
                 capacityKwh = cap,
                 energyAtMillis = parseIso(electric?.optString("updatedAt")),
+                heading = j.obj("lastPosition", "properties")?.num("heading")?.takeIf { it in 0.0..360.0 },
+                privacyState = j.optJSONObject("privacy")?.str("state"),
+                fogLightsOn = j.optJSONObject("lightingSystem")?.optJSONArray("fog")?.objects().orEmpty()
+                    .filter { it.optString("status") == "On" }
+                    .map { listOfNotNull(it.str("direction"), it.str("position")).joinToString(" ") },
+                alarmOn = j.obj("alarm", "status")?.str("activation")?.let { it == "Active" },
+                fuelTotalRaw = fuel?.obj("extension", "fuel", "consumptions")?.num("total")?.takeIf { it > 0 },
             )
         }
 
@@ -194,8 +209,17 @@ data class Trip(
     val avgSpeedKmh: Double?,
     val liters: Double? = null,
     val avgLPer100: Double? = null,
+    /** Fuel gauge (%) when the trip started and ended, when the car reports it: fill-ups show up between two trips. */
+    val fuelStartPct: Double? = null,
+    val fuelEndPct: Double? = null,
 ) {
     companion object {
+        private fun fuelLevel(t: JSONObject, key: String): Double? {
+            val list = t.optJSONArray(key)?.objects().orEmpty()
+            val tank = list.firstOrNull { it.optString("type") == "Fuel" } ?: list.singleOrNull()?.takeIf { it.optString("type") != "Electric" }
+            return tank?.num("level")?.takeIf { it in 0.0..100.0 }
+        }
+
         /** Peugeot doesn't document fuel units; pick the scale that gives a sane l/100 km (2–30). */
         private fun litersOf(raw: Double?, km: Double): Double? {
             if (raw == null || raw <= 0 || km < 0.5) return null
@@ -225,6 +249,8 @@ data class Trip(
                 liters = liters,
                 // Work it out from fuel used and distance; the car's own average comes in different units (some trips were km/l).
                 avgLPer100 = liters?.let { it / km * 100 } ?: per100Of(fuel?.num("avgConsumption")),
+                fuelStartPct = fuelLevel(t, "startEnergies"),
+                fuelEndPct = fuelLevel(t, "endEnergies"),
             )
         }
     }

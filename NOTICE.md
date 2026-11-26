@@ -37,6 +37,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
+## lionCar — GPL-3.0
+The fuel statistics (`app/src/main/java/no/lionflow/app/model/FuelStats.kt`: fill-ups read from the fuel gauge, the tank
+size worked out from the gauge, the average since new from the car's fuel counter) follow the method in
+[lionCar](https://github.com/t-shock/lionCar-iOS) by t-shock, the iPhone port of LionFlow, licensed under the GNU General
+Public License v3.0. The "All car data" screen, the notes on Home and the extra values read from the car's status
+(heading, privacy mode, fog lights, alarm) came from the same project.
+
 ## Libraries
 - AndroidX, Jetpack Compose, OkHttp, WorkManager — Apache License 2.0
 - MapLibre Native for Android — BSD 2-Clause

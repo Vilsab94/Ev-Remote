@@ -53,6 +53,10 @@ import org.json.JSONObject
 data class CarState(
     val name: String, val battery: String, val range: String, val fuel: Boolean, val locked: Boolean?,
     val place: String, val today: String, val yesterday: String, val updated: String, val status: String, val cars: Int = 1,
+    /** Parts the user turned off on the phone: distance, lock, flash, preheat, place. */
+    val hide: Set<String> = emptySet(),
+    /** More rows chosen on the phone (doors, odometer …): label to value. */
+    val extras: List<Pair<String, String>> = emptyList(),
 )
 
 /**
@@ -111,6 +115,8 @@ class WearVm(app: Application) : AndroidViewModel(app), MessageClient.OnMessageR
                     j.optString("name"), j.optString("battery"), j.optString("range"), j.optBoolean("fuel"),
                     if (j.isNull("locked")) null else j.optBoolean("locked"),
                     j.optString("place"), j.optString("today"), j.optString("yesterday"), j.optString("updated"), j.optString("status"), j.optInt("cars", 1),
+                    hide = j.optJSONArray("hide")?.let { a -> (0 until a.length()).map { a.optString(it) }.toSet() } ?: emptySet(),
+                    extras = j.optJSONArray("extras")?.let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it) }.map { it.optString("label") to it.optString("value") } } ?: emptyList(),
                 )
             }
             "/lionflow/cmd/reply" -> {
@@ -163,7 +169,7 @@ fun WearApp(vm: WearVm = viewModel()) {
                     }
                 }
                 // Distance today / yesterday
-                item {
+                if ("distance" !in s.hide) item {
                     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(s.today, fontWeight = FontWeight.SemiBold); Text(stringResource(R.string.today), fontSize = 11.sp, color = Color(0xFF9A9EA6))
@@ -176,22 +182,32 @@ fun WearApp(vm: WearVm = viewModel()) {
                 msg?.let { m -> item { Text(m, color = Lime, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 10.dp)) } }
                 // Actions
                 val locked = s.locked != false
-                item {
+                if ("lock" !in s.hide) item {
                     Chip(
                         label = { Text(stringResource(if (locked) R.string.unlock else R.string.lock), color = Ink, fontWeight = FontWeight.SemiBold) },
                         onClick = { confirm = if (locked) "unlock" else "lock" }, enabled = !busy,
                         colors = ChipDefaults.chipColors(backgroundColor = Lime), modifier = Modifier.fillMaxWidth(),
                     )
                 }
-                item { Chip(label = { Text(stringResource(R.string.flash)) }, onClick = { confirm = "lights" }, enabled = !busy, colors = ChipDefaults.secondaryChipColors(), modifier = Modifier.fillMaxWidth()) }
-                if (!s.fuel) item { Chip(label = { Text(stringResource(R.string.preheat)) }, onClick = { confirm = "preheat" }, enabled = !busy, colors = ChipDefaults.secondaryChipColors(), modifier = Modifier.fillMaxWidth()) }
+                if ("flash" !in s.hide) item { Chip(label = { Text(stringResource(R.string.flash)) }, onClick = { confirm = "lights" }, enabled = !busy, colors = ChipDefaults.secondaryChipColors(), modifier = Modifier.fillMaxWidth()) }
+                if (!s.fuel && "preheat" !in s.hide) item { Chip(label = { Text(stringResource(R.string.preheat)) }, onClick = { confirm = "preheat" }, enabled = !busy, colors = ChipDefaults.secondaryChipColors(), modifier = Modifier.fillMaxWidth()) }
                 // Where the car is (address only)
-                item {
+                if ("place" !in s.hide) item {
                     Chip(
                         label = { Text(stringResource(R.string.find_car), fontSize = 11.sp) },
                         secondaryLabel = { Text(s.place.ifBlank { "—" }, maxLines = 3) },
                         onClick = {}, colors = ChipDefaults.secondaryChipColors(), modifier = Modifier.fillMaxWidth(),
                     )
+                }
+                // More rows chosen on the phone (doors, odometer, outside temperature, next service)
+                s.extras.forEach { (label, value) ->
+                    item {
+                        Chip(
+                            label = { Text(label, fontSize = 11.sp) },
+                            secondaryLabel = { Text(value, maxLines = 2) },
+                            onClick = {}, colors = ChipDefaults.secondaryChipColors(), modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                 }
                 item { Text(stringResource(R.string.updated, s.updated), fontSize = 11.sp, color = Color(0xFF9A9EA6)) }
                 item { Chip(label = { Text(stringResource(R.string.refresh)) }, onClick = { vm.refresh() }, enabled = !busy, colors = ChipDefaults.secondaryChipColors()) }

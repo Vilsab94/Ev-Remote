@@ -78,15 +78,24 @@ import no.lionflow.app.ui.theme.Type
 fun HomeScreen(vm: AppViewModel, ui: UiState, s: AppSettings, wide: Boolean, expanded: Boolean) {
     if (wide) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(0.dp)) {
-            Box(Modifier.weight(1f)) { ScreenColumn(wide = true, maxWidth = 460) { NoStatusCard(ui); HomeMain(vm, ui, s, wide = true) } }
+            Box(Modifier.weight(1f)) { ScreenColumn(wide = true, maxWidth = 460) { NoStatusCard(ui); HomeBanners(ui, s); HomeMain(vm, ui, s, wide = true) } }
             Box(Modifier.weight(1f)) {
                 ScreenColumn(wide = true, maxWidth = 460) {
                     Spacer(Modifier.height(4.dp))
-                    // Things the left column doesn't already show
+                    // Things the left column doesn't already show. Charging stays on top; the rest follows the user's own choice and order.
                     if (no.lionflow.app.ui.Caps.battery(ui.status)) ChargingSummary(vm, ui, s)
-                    TripsClimateRow(vm, ui, s)
+                    for (id in no.lionflow.app.data.HomeLayout.phoneCards(s)) {
+                        when (id) {
+                            "warnings" -> WarningsCard(ui)
+                            "parked" -> ParkedCard(vm, ui)
+                            "tripsClimate" -> TripsClimateRow(vm, ui, s)
+                            "service" -> ServiceCard(vm, ui, s)
+                            "fuel" -> FuelMonthCard(vm, ui, s)
+                            "cardata" -> CarDataCard(vm, ui, s)
+                        }
+                    }
                     if (no.lionflow.app.ui.Caps.battery(ui.status)) MonthCostCard(vm)
-                    ServiceCard(vm, ui, s)
+                    CustomizeLink(vm, ui, s)
                 }
             }
         }
@@ -95,7 +104,7 @@ fun HomeScreen(vm: AppViewModel, ui: UiState, s: AppSettings, wide: Boolean, exp
     }
 }
 
-/** Phone home: full-width car photo with the name and status on it, then battery, lock state and actions. */
+/** Phone home: full-width car photo with the name and status on it, then the cards the user chose, in their order. */
 @Composable
 private fun HomePhone(vm: AppViewModel, ui: UiState, s: AppSettings) {
     val scroll = androidx.compose.foundation.rememberScrollState()
@@ -106,12 +115,35 @@ private fun HomePhone(vm: AppViewModel, ui: UiState, s: AppSettings) {
             UpdateCard(vm, ui)
             NoStatusCard(ui)
             QuietCarCard(vm, ui)
-            BatteryCard(vm, ui, s)
-            LockLine(ui)
-            QuickActions(vm, ui)
-            NavCards(vm, ui, s)
+            HomeBanners(ui, s)
+            for (id in no.lionflow.app.data.HomeLayout.phoneCards(s)) {
+                when (id) {
+                    "warnings" -> WarningsCard(ui)
+                    "battery" -> BatteryCard(vm, ui, s)
+                    "lock" -> LockLine(ui)
+                    "actions" -> QuickActions(vm, ui)
+                    "parked" -> ParkedCard(vm, ui)
+                    "tripsClimate" -> TripsClimateRow(vm, ui, s)
+                    "service" -> ServiceCard(vm, ui, s)
+                    "fuel" -> FuelMonthCard(vm, ui, s)
+                    "charging" -> if (no.lionflow.app.ui.Caps.battery(ui.status)) ChargingSummary(vm, ui, s)
+                    "monthCost" -> if (no.lionflow.app.ui.Caps.battery(ui.status)) MonthCostCard(vm)
+                    "cardata" -> CarDataCard(vm, ui, s)
+                }
+            }
+            CustomizeLink(vm, ui, s)
         }
     }
+}
+
+/** The way in to choosing what Home shows. */
+@Composable
+private fun CustomizeLink(vm: AppViewModel, ui: UiState, s: AppSettings) {
+    val c = LocalLf.current
+    var open by remember { mutableStateOf(false) }
+    Text("Customize this screen", style = Type.small.copy(fontWeight = FontWeight.SemiBold), color = c.muted,
+        modifier = Modifier.fillMaxWidth().clickable(role = Role.Button) { open = true }.padding(vertical = 10.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+    if (open) HomeEditor(vm, ui, s, "phone") { open = false }
 }
 
 private val OnPhoto = androidx.compose.ui.graphics.Color(0xFFF4F5F7)
@@ -182,7 +214,7 @@ private fun Hero(vm: AppViewModel, ui: UiState, s: AppSettings) {
                 )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Box(Modifier.rotate(angle)) { GlassButton(LfIcons.Refresh, "Refresh car data now") { spins++; vm.refresh() } }
+                Box(Modifier.rotate(angle)) { GlassButton(LfIcons.Refresh, "Refresh car data now") { spins++; vm.refreshNow() } }
             }
         }
 
@@ -368,12 +400,6 @@ private fun QuickActions(vm: AppViewModel, ui: UiState) {
             modifier = Modifier.clickable { vm.openRemoteSetup() }.padding(vertical = 4.dp))
         NeedsPackHint(electric = false)
     }
-}
-
-@Composable
-private fun NavCards(vm: AppViewModel, ui: UiState, s: AppSettings) {
-    TripsClimateRow(vm, ui, s)
-    ServiceCard(vm, ui, s)
 }
 
 /** Trips and Climate side by side, each half the width. Cars without climate get the full-width trips card. */
@@ -567,7 +593,7 @@ private fun HomeMain(vm: AppViewModel, ui: UiState, s: AppSettings, wide: Boolea
             )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Box(Modifier.rotate(angle)) { CircleIconButton(LfIcons.Refresh, "Refresh car data now") { spins++; vm.refresh() } }
+            Box(Modifier.rotate(angle)) { CircleIconButton(LfIcons.Refresh, "Refresh car data now") { spins++; vm.refreshNow() } }
         }
     }
 

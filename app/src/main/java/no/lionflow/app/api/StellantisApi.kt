@@ -239,18 +239,32 @@ class StellantisApi(private val ctx: Context, private val secure: SecureStore, p
         tokenRequest(url)
     }
 
-    private suspend fun refreshOauth() {
-        val refresh = secure.get(K_REFRESH) ?: throw AuthExpiredException()
+    /**
+     * Staying signed in. The carmaker's server hands out a NEW refresh token at every renewal and the old one stops
+     * working at once, so an app that loses the new one is signed out (a common complaint about the official apps).
+     * Three rules keep that from happening here: only one renewal runs at a time ([tokenLock]), the new refresh
+     * token is written to disk before anything else is done with the answer, and it goes to the account the renewal
+     * was started for, even if another car or account was picked while the request was out.
+     */
+    private suspend fun refreshOauth(prof: String = secure.profile) {
+        val refresh = secure.get(K_REFRESH, prof) ?: throw AuthExpiredException()
         val url = "${cfg.oauthUrl}/am/oauth2/access_token?grant_type=refresh_token&refresh_token=${enc(refresh)}"
         try {
-            tokenRequest(url)
+            tokenRequest(url, prof)
         } catch (e: ApiException) {
-            if (e.code == 400 || e.code == 401) throw AuthExpiredException()
+            if (e.code == 401 || (e.code == 400 && tokenIsDead(e))) throw AuthExpiredException()
             throw e
         }
     }
 
-    private suspend fun tokenRequest(url: String) {
+    /** A 400 that is about something else than the token (a bad request, the wrong client) is not a reason to sign out. */
+    private fun tokenIsDead(e: ApiException): Boolean {
+        val m = e.message.orEmpty().lowercase()
+        if (m.contains("invalid_grant")) return true
+        return listOf("invalid_request", "invalid_client", "unauthorized_client", "unsupported_grant_type", "invalid_scope").none { m.contains(it) }
+    }
+
+    private suspend fun tokenRequest(url: String, prof: String = secure.profile) {
         val req = Request.Builder().url(url)
             .post(ByteArray(0).toRequestBody(null))
             .header("Content-Type", "application/x-www-form-urlencoded")
@@ -258,16 +272,20 @@ class StellantisApi(private val ctx: Context, private val secure: SecureStore, p
             .build()
         val j = Http.json(req) as? JSONObject ?: throw ApiException(0, "Empty token response")
         val access = j.str("access_token") ?: throw ApiException(0, "No access token in response")
-        secure.put(K_ACCESS, access)
-        j.str("refresh_token")?.let { secure.put(K_REFRESH, it) }
         val expiresIn = j.optLong("expires_in", 3600L)
-        secure.put(K_EXPIRES, (System.currentTimeMillis() + expiresIn * 1000).toString())
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            // The new refresh token first, and on disk before anything else: the old one is already dead on the server.
+            j.str("refresh_token")?.let { secure.put(K_REFRESH, it, prof, now = true) }
+            secure.put(K_ACCESS, access, prof)
+            secure.put(K_EXPIRES, (System.currentTimeMillis() + expiresIn * 1000).toString(), prof)
+        }
     }
 
     private suspend fun accessToken(): String = tokenLock.withLock {
-        val exp = secure.get(K_EXPIRES)?.toLongOrNull() ?: 0L
-        if (secure.get(K_ACCESS) == null || System.currentTimeMillis() > exp - 5 * 60_000) refreshOauth()
-        secure.get(K_ACCESS) ?: throw AuthExpiredException()
+        val prof = secure.profile
+        val exp = secure.get(K_EXPIRES, prof)?.toLongOrNull() ?: 0L
+        if (secure.get(K_ACCESS, prof) == null || System.currentTimeMillis() > exp - 5 * 60_000) refreshOauth(prof)
+        secure.get(K_ACCESS, prof) ?: throw AuthExpiredException()
     }
 
     private suspend fun <T> authed(block: suspend (String) -> T): T {
@@ -286,7 +304,8 @@ class StellantisApi(private val ctx: Context, private val secure: SecureStore, p
             block(token)
         } catch (e: ApiException) {
             if (e.code == 401) {
-                tokenLock.withLock { refreshOauth() }
+                // Renew, unless another request already did while this one was out (never two renewals for one token).
+                tokenLock.withLock { if (secure.get(K_ACCESS) == token) refreshOauth() }
                 block(secure.get(K_ACCESS) ?: throw AuthExpiredException())
             } else throw e
         }
@@ -401,6 +420,17 @@ class StellantisApi(private val ctx: Context, private val secure: SecureStore, p
         val url = "$API/connectedcar/v4/user/vehicles/${v.id}/status?${clientQuery()}"
         Http.json(carHeaders(Request.Builder().url(url), token).get().build()) as? JSONObject
             ?: throw ApiException(0, "Empty status response")
+    }
+
+    /** Warnings the car itself has reported. Empty when there are none, or when the car doesn't share them. */
+    suspend fun alerts(v: Vehicle): List<JSONObject> = try {
+        authed { token ->
+            val url = "$API/connectedcar/v4/user/vehicles/${v.id}/alerts?${clientQuery()}"
+            (Http.json(carHeaders(Request.Builder().url(url), token).get().build()) as? JSONObject)
+                ?.obj("_embedded")?.optJSONArray("alerts")?.objects().orEmpty()
+        }
+    } catch (e: ApiException) {
+        if (e.noData) emptyList() else throw e
     }
 
     suspend fun maintenance(v: Vehicle): JSONObject? {

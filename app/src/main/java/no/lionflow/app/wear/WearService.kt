@@ -61,8 +61,21 @@ class WearService : WearableListenerService() {
             val st = ChargePower.record(app.api.readStatus(v))
             no.lionflow.app.widget.WidgetData.save(applicationContext, st)
             val s = app.settings.value
-            val (today, yesterday) = try { distances(v) } catch (_: Exception) { null to null }
+            // What the watch shows is chosen on the phone (Settings → Home screens → Watch).
+            val hidden = no.lionflow.app.data.HomeLayout.hidden(s.watchHidden)
+            val (today, yesterday) = if ("distance" in hidden) null to null else try { distances(v) } catch (_: Exception) { null to null }
+            val extras = org.json.JSONArray()
+            fun extra(id: String, label: String, value: String?) {
+                if (id !in hidden && !value.isNullOrBlank()) extras.put(JSONObject().put("label", tr(label)).put("value", value))
+            }
+            extra("doors", "Doors", no.lionflow.app.car.CarHub.doorsLine(st))
+            extra("odometer", "Odometer", st.odometerKm?.let { fmtDistance(it, s) })
+            extra("outside", "Outside", st.outsideTempC?.let { no.lionflow.app.ui.fmtTemp(it, s) })
+            extra("service", "Next service", listOfNotNull(st.kmToService?.let { fmtDistance(it, s) },
+                st.daysToService?.let { tr("{0} days").replace("{0}", "${Math.round(it)}") }).joinToString(" · ").ifEmpty { null })
             JSONObject()
+                .put("hide", org.json.JSONArray(hidden.toList()))
+                .put("extras", extras)
                 .put("name", s.carName)
                 .put("cars", no.lionflow.app.model.Garage.entries(app).size)
                 .put("battery", st.batteryPct?.let { "${it.toInt()} %" } ?: "—")

@@ -123,17 +123,19 @@ internal class HomeScreen(ctx: CarContext, ui: CarUi) : DrawnScreen(ctx, ui) {
         val (status, tone) = carStatusLine()
         val fuelOnly = st?.energyType == "Fuel"
 
+        // Which tiles and lines are shown is chosen on the phone (Settings → Home screens → Android Auto).
+        val hidden = no.lionflow.app.data.HomeLayout.hidden(s.carHidden)
         val tiles = ArrayList<HomeModel.Tile>()
         // Planning is about the battery: not for cars that only burn fuel.
-        if (!fuelOnly) tiles += HomeModel.Tile("plan", tr("Plan a trip"), tr("Battery % on arrival"), R.drawable.ic_car_search)
-        tiles += HomeModel.Tile("chargers", tr(if (fuelOnly) "Fuel stations" else if (st?.energyType == "Hybrid") "Chargers & fuel" else "Chargers"), tr("Nearest first"),
+        if (!fuelOnly && "plan" !in hidden) tiles += HomeModel.Tile("plan", tr("Plan a trip"), tr("Battery % on arrival"), R.drawable.ic_car_search)
+        if ("chargers" !in hidden) tiles += HomeModel.Tile("chargers", tr(if (fuelOnly) "Fuel stations" else if (st?.energyType == "Hybrid") "Chargers & fuel" else "Chargers"), tr("Nearest first"),
             if (fuelOnly) R.drawable.ic_car_fuel else R.drawable.ic_car_charger)
-        val saved = if (SavedRoutes.fromPlay(carContext)) SavedRoutes.all(carContext) else emptyList()
+        val saved = if (SavedRoutes.fromPlay(carContext) && "saved" !in hidden) SavedRoutes.all(carContext) else emptyList()
         if (saved.isNotEmpty()) tiles += HomeModel.Tile("saved", tr("Saved routes"), if (saved.size == 1) saved[0].name else tr("${saved.size} routes"), R.drawable.ic_car_route)
         val trips = CarHub.trips.value
         val weekKm = trips?.filter { (it.startMillis ?: 0L) >= System.currentTimeMillis() - 7 * 86_400_000L }?.sumOf { it.distanceKm }
-        tiles += HomeModel.Tile("trips", tr("Previous trips"), if (weekKm == null) tr("Loading…") else tr("7 days: ${fmtDistance(weekKm, s)}"), R.drawable.ic_car_history)
-        tiles += HomeModel.Tile("info", tr("Car Info"), st?.odometerKm?.let { fmtDistance(it, s) } ?: tr("Details from the car"), R.drawable.ic_car_gauge)
+        if ("trips" !in hidden) tiles += HomeModel.Tile("trips", tr("Previous trips"), if (weekKm == null) tr("Loading…") else tr("7 days: ${fmtDistance(weekKm, s)}"), R.drawable.ic_car_history)
+        if ("info" !in hidden) tiles += HomeModel.Tile("info", tr("Car Info"), st?.odometerKm?.let { fmtDistance(it, s) } ?: tr("Details from the car"), R.drawable.ic_car_gauge)
         if (several) tiles += HomeModel.Tile("switch", tr("Switch car"), s.carName, R.drawable.ic_car_switch)
 
         return HomeModel(s.carName, status, tone, st?.let { gauge(it, s) }, tr("Getting the car's status…"), tiles)
@@ -145,25 +147,32 @@ internal class HomeScreen(ctx: CarContext, ui: CarUi) : DrawnScreen(ctx, ui) {
         val live = CarHub.live.value
         val pct = if (fuelOnly) st.fuelPct ?: st.batteryPct else live.pct ?: st.batteryPct
         val range = if (fuelOnly) st.fuelRangeKm ?: st.rangeKm else live.rangeKm ?: st.rangeKm
+        val hidden = no.lionflow.app.data.HomeLayout.hidden(s.carHidden)
         val lines = ArrayList<HomeModel.Line>()
         val doors = HomeModel.Line(R.drawable.ic_car_lock, CarHub.doorsLine(st), if (st.openDoors.isNotEmpty() || st.locked == false) Tone.WARN else Tone.TEXT)
-        if (fuelOnly) lines += doors
+        val showDoors = "doors" !in hidden
+        val showCharging = "charging" !in hidden
+        if (fuelOnly) { if (showDoors) lines += doors }
         else when {
             st.isCharging -> {
-                lines += HomeModel.Line(R.drawable.ic_car_bolt, tr("Charging") + (ChargePower.label(st)?.let { " · $it" } ?: ""), Tone.GOOD)
-                st.remainingMinutes?.takeIf { it > 0 }?.let { lines += HomeModel.Line(R.drawable.ic_car_history, tr("Full in") + " " + carDuration(it.toDouble()), Tone.GOOD) }
-                lines += doors
+                if (showCharging) {
+                    lines += HomeModel.Line(R.drawable.ic_car_bolt, tr("Charging") + (ChargePower.label(st)?.let { " · $it" } ?: ""), Tone.GOOD)
+                    st.remainingMinutes?.takeIf { it > 0 }?.let { lines += HomeModel.Line(R.drawable.ic_car_history, tr("Full in") + " " + carDuration(it.toDouble()), Tone.GOOD) }
+                }
+                if (showDoors) lines += doors
             }
             else -> {
-                lines += doors
-                lines += HomeModel.Line(R.drawable.ic_car_bolt, tr(when { st.chargingStatus == "Finished" -> "Charging complete"; st.plugged -> "Plugged in"; else -> "Not plugged in" }),
+                if (showDoors) lines += doors
+                if (showCharging) lines += HomeModel.Line(R.drawable.ic_car_bolt, tr(when { st.chargingStatus == "Finished" -> "Charging complete"; st.plugged -> "Plugged in"; else -> "Not plugged in" }),
                     if (st.plugged || st.chargingStatus == "Finished") Tone.GOOD else Tone.TEXT)
             }
         }
         // A plug-in hybrid: the tank in one short line (its range is in Car Info).
         if (!fuelOnly && st.fuelPct != null) lines += HomeModel.Line(R.drawable.ic_car_fuel, tr("Fuel") + " ${st.fuelPct.roundToInt()} %", Tone.TEXT)
-        st.outsideTempC?.let { lines += HomeModel.Line(R.drawable.ic_car_climate, fmtTemp(it, s) + " " + tr("outside"), Tone.TEXT) }
+        if ("outside" !in hidden) st.outsideTempC?.let { lines += HomeModel.Line(R.drawable.ic_car_climate, fmtTemp(it, s) + " " + tr("outside"), Tone.TEXT) }
         if (st.preconditioningOn) lines += HomeModel.Line(R.drawable.ic_car_climate, tr("Pre-heating"), Tone.WARN)
+        if ("odometer" !in hidden) st.odometerKm?.let { lines += HomeModel.Line(R.drawable.ic_car_gauge, fmtDistance(it, s), Tone.TEXT) }
+        if ("service" !in hidden) st.kmToService?.let { lines += HomeModel.Line(R.drawable.ic_car_history, tr("Next service") + " · " + fmtDistance(it, s), Tone.TEXT) }
         return HomeModel.Gauge(pct, range?.let { fmtDistance(it, s) } ?: "—", lines)
     }
 }
