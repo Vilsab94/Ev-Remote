@@ -218,8 +218,8 @@ fun Wordmark(fontSize: Int = 15) {
     val c = LocalLf.current
     Text(
         buildAnnotatedString {
-            append("Lion")
-            withStyle(SpanStyle(color = c.accentInk)) { append("Flow") }
+            append("EV")
+            withStyle(SpanStyle(color = c.accentInk)) { append(" Remote") }
         },
         style = Type.display.copy(fontSize = fontSize.sp, fontWeight = FontWeight.Bold),
         color = c.text,

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">LionFlow</string>
+    <string name="app_name">EV Remote</string>
     <string name="battery">Batería</string>
     <string name="fuel">Combustible</string>
     <string name="range">Autonomía</string>
@@ -13,7 +13,7 @@
     <string name="find_car">El coche está en</string>
     <string name="refresh">Actualizar</string>
     <string name="loading">Obteniendo el estado…</string>
-    <string name="no_phone">Abre LionFlow en tu teléfono. El reloj obtiene los datos de allí.</string>
+    <string name="no_phone">Abre EV Remote en tu teléfono. El reloj obtiene los datos de allí.</string>
     <string name="confirm_unlock">¿Desbloquear el coche?</string>
     <string name="confirm_lock">¿Bloquear el coche?</string>
     <string name="confirm_flash">¿Encender las luces?</string>

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">LionFlow</string>
+    <string name="app_name">EV Remote</string>
     <string name="battery">Batterie</string>
     <string name="fuel">Kraftstoff</string>
     <string name="range">Reichweite</string>
@@ -13,7 +13,7 @@
     <string name="find_car">Das Auto steht</string>
     <string name="refresh">Aktualisieren</string>
     <string name="loading">Status wird abgerufen…</string>
-    <string name="no_phone">Öffnen Sie LionFlow auf dem Telefon. Die Uhr bekommt ihre Daten von dort.</string>
+    <string name="no_phone">Öffnen Sie EV Remote auf dem Telefon. Die Uhr bekommt ihre Daten von dort.</string>
     <string name="confirm_unlock">Auto entriegeln?</string>
     <string name="confirm_lock">Auto verriegeln?</string>
     <string name="confirm_flash">Lichthupe betätigen?</string>

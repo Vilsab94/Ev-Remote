@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">LionFlow</string>
+    <string name="app_name">EV Remote</string>
     <string name="battery">Battery</string>
     <string name="fuel">Fuel</string>
     <string name="range">Range</string>
@@ -13,7 +13,7 @@
     <string name="find_car">Car is at</string>
     <string name="refresh">Refresh</string>
     <string name="loading">Getting car status…</string>
-    <string name="no_phone">Open LionFlow on your phone. The watch gets its data from there.</string>
+    <string name="no_phone">Open EV Remote on your phone. The watch gets its data from there.</string>
     <string name="confirm_unlock">Unlock the car?</string>
     <string name="confirm_lock">Lock the car?</string>
     <string name="confirm_flash">Flash the lights?</string>

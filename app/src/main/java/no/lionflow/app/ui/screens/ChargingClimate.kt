@@ -125,6 +125,7 @@ fun ChargingScreen(vm: AppViewModel, ui: UiState, s: AppSettings, wide: Boolean)
 fun EstimatedHealth(s: AppSettings, st: no.lionflow.app.model.VehicleStatus?, compact: Boolean = false) {
     val c = LocalLf.current
     if (st == null || st.residualKwh == null) return
+    if (no.lionflow.app.model.ChargePower.userKwh() != null) return   // EV Remote: kWh are % × set battery size, nothing to estimate health from
     val sessions by no.lionflow.app.model.ChargeLog.sessions.collectAsState()
     val newKwh = s.batteryKwh.takeIf { it > 0 } ?: st.capacityKwh
     val est = no.lionflow.app.model.ChargeSession.healthEstimate(sessions, newKwh)

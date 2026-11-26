@@ -45,6 +45,31 @@ object ChargePower {
     internal fun store(): SharedPreferences? = prefs
     internal fun key(name: String) = k(name)
 
+    /** EV Remote: the battery size from Settings (default 43 kWh), or null when none is set. */
+    fun userKwh(): Double? = settings?.value?.batteryKwh?.takeIf { it > 0 }
+
+    /**
+     * EV Remote: the server's battery figures are wrong for some cars (Mokka-e: capacity 32.96 kWh, real ~43 kWh),
+     * while the level % is right. With a battery size set, the energy in the battery is level % × that size, so
+     * charging kW, the charge log and trips logged from the car all use it. The server's capacity is remembered
+     * to correct the trip energy the server reports (see [tripFactor]).
+     */
+    private fun applyBatterySize(st: VehicleStatus): VehicleStatus {
+        val b = userKwh() ?: return st
+        if (st.energyType != "Electric") return st
+        st.capacityKwh?.let { cap ->
+            prefs?.let { p -> if (p.getFloat(k("srvCap"), 0f) != cap.toFloat()) p.edit().putFloat(k("srvCap"), cap.toFloat()).apply() }
+        }
+        return st.copy(residualKwh = st.batteryPct?.let { it / 100.0 * b }, capacityKwh = b)
+    }
+
+    /** EV Remote: server trip energy is level change × the server's capacity; this factor makes it × the set battery size. */
+    fun tripFactor(): Double? {
+        val b = userKwh() ?: return null
+        val cap = prefs?.getFloat(k("srvCap"), 0f)?.toDouble() ?: return null
+        return if (cap > 1) b / cap else null
+    }
+
     /**
      * Usable battery size: the user's setting, else what the car reports (or works out from energy left and %),
      * else a default for the car type (plug-in hybrids ~11.5 kWh, electric E-5008 73 kWh).
@@ -100,7 +125,7 @@ object ChargePower {
     }
 
     fun record(raw: VehicleStatus): VehicleStatus {
-        val st = applyPendingPrograms(fixRange(fixLevel(raw)))
+        val st = applyPendingPrograms(fixRange(applyBatterySize(fixLevel(raw))))
         try { ChargeLog.observe(st) } catch (_: Exception) { }
         try { CarTrips.observe(st) } catch (_: Exception) { }
         val p = prefs ?: return st

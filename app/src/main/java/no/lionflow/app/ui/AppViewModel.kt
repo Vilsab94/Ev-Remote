@@ -1171,7 +1171,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun exportTripsCsv(): File {
         val dir = File(getApplication<Application>().cacheDir, "exports").apply { mkdirs() }
-        val f = File(dir, "lionflow-trips.csv")
+        val f = File(dir, "evremote-trips.csv")
         val iso = SimpleDateFormat("yyyy-MM-dd HH:mm", no.lionflow.app.ui.l10n.L10n.locale)
         val sb = StringBuilder("id,start,end,distance_km,duration_min,energy_kwh,avg_kwh_per_100km,avg_speed_kmh,tag\n")
         for (t in _ui.value.trips) {

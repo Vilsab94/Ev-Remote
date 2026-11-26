@@ -233,8 +233,9 @@ object ChargeLog {
         val lastPct = endPct ?: a.optDouble("lastPct", startPct)
         val startKwh = if (a.isNull("startKwh")) null else a.optDouble("startKwh")
         val lastKwh = endKwh ?: if (a.isNull("lastKwh")) null else a.optDouble("lastKwh")
-        val usable = a.optDouble("usable", 73.0)
-        val kwh = if (startKwh != null && lastKwh != null && lastKwh > startKwh) lastKwh - startKwh
+        val usable = ChargePower.userKwh() ?: a.optDouble("usable", 73.0)
+        val byPct = ChargePower.userKwh() != null   // EV Remote: always level % × the set battery size
+        val kwh = if (!byPct && startKwh != null && lastKwh != null && lastKwh > startKwh) lastKwh - startKwh
         else ((lastPct - startPct) / 100.0 * usable).coerceAtLeast(0.0)
         val lat = if (a.isNull("lat")) null else a.optDouble("lat")
         val lon = if (a.isNull("lon")) null else a.optDouble("lon")
@@ -245,7 +246,7 @@ object ChargeLog {
             peakKw = if (a.isNull("peak")) null else a.optDouble("peak"),
             mode = if (a.isNull("mode")) null else a.optString("mode"),
             lat = lat, lon = lon, address = null, source = near,
-            measured = startKwh != null && lastKwh != null && lastKwh > startKwh,
+            measured = !byPct && startKwh != null && lastKwh != null && lastKwh > startKwh,
         )
     }
 
@@ -287,7 +288,10 @@ object ChargeLog {
 
     private fun loadSessions(): List<ChargeSession> = try {
         val a = JSONArray(prefs?.getString(k("sessions"), "[]") ?: "[]")
+        val b = ChargePower.userKwh()
         (0 until a.length()).map { ChargeSession.fromJson(a.getJSONObject(it)) }
+            // EV Remote: sessions saved with the server's energy figures are shown as level % × the set battery size.
+            .map { s -> if (b == null) s else s.copy(kwh = ((s.endPct - s.startPct) / 100.0 * b).coerceAtLeast(0.0), measured = false) }
     } catch (_: Exception) { emptyList() }
 
     private fun loadActive(): JSONObject? = try { prefs?.getString(k("active"), null)?.let { JSONObject(it) } } catch (_: Exception) { null }

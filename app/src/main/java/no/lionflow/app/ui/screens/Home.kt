@@ -204,7 +204,7 @@ private fun Hero(vm: AppViewModel, ui: UiState, s: AppSettings) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     LionLogo(22.dp)
-                    Text(buildAnnotatedString { append("Lion"); withStyle(SpanStyle(color = c.accent)) { append("Flow") } },
+                    Text(buildAnnotatedString { append("EV"); withStyle(SpanStyle(color = c.accent)) { append(" Remote") } },
                         style = Type.display.copy(fontSize = 17.sp, fontWeight = FontWeight.Bold, shadow = PhotoShadow), color = OnPhoto)
                 }
                 CarSwitcher(vm, ui) { Text(s.carName, style = Type.title.copy(fontSize = 40.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-1).sp, shadow = PhotoShadow), color = OnPhoto, maxLines = 1) }
@@ -583,7 +583,7 @@ private fun HomeMain(vm: AppViewModel, ui: UiState, s: AppSettings, wide: Boolea
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 LionLogo(20.dp)
-                Text(buildAnnotatedString { append("Lion"); withStyle(SpanStyle(color = c.accentInk)) { append("Flow") } },
+                Text(buildAnnotatedString { append("EV"); withStyle(SpanStyle(color = c.accentInk)) { append(" Remote") } },
                     style = Type.display.copy(fontSize = 15.sp, fontWeight = FontWeight.Bold), color = c.text)
             }
             CarSwitcher(vm, ui) { Text(s.carName, style = Type.title, color = c.text) }

@@ -50,7 +50,7 @@
                 android:fontFamily="sans-serif"
                 android:includeFontPadding="false"
                 android:maxLines="1"
-                android:text="LionFlow"
+                android:text="EV Remote"
                 android:textColor="@color/widget_text"
                 android:textStyle="bold" />
 

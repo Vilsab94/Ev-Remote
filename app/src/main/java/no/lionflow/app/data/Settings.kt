@@ -7,6 +7,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
+/** EV Remote: usable battery of an Opel Mokka-e 2022 (46 kWh × ~93 % health). The server reports ~33 kWh. */
+const val DEFAULT_BATTERY_KWH = 43.0
+
 data class AppSettings(
     val theme: String = "dark",          // dark | light | system
     val distanceUnit: String = "km",     // km | mi
@@ -60,7 +63,7 @@ data class AppSettings(
     val routeTracking: Boolean = false, // record routes with the phone's GPS while connected to the car over Bluetooth
     val routeBtAddr: String = "",       // the car's Bluetooth address
     val routeBtName: String = "",
-    val batteryKwh: Double = 0.0,       // usable battery size for kW maths; 0 = use what the car reports (else 73)
+    val batteryKwh: Double = DEFAULT_BATTERY_KWH, // EV Remote: usable battery size, used instead of the server's residual/capacity everywhere
     /** Home screens (see HomeLayout): the phone's cards in the user's order, and what is hidden on each screen. */
     val homeOrder: String = "",
     val homeHidden: String = HomeLayout.PHONE_HIDDEN,
@@ -115,7 +118,7 @@ class SettingsStore internal constructor(private val p: SharedPreferences) {
         carVideo = p.getBoolean("carVideo", true),
         carVideoSync = p.getBoolean("carVideoSync", true),
         carPlain = p.getBoolean("carPlain", false),
-        batteryKwh = p.getFloat("batteryKwh", 0f).toDouble(),
+        batteryKwh = p.getFloat("batteryKwh", 0f).toDouble().takeIf { it > 0 } ?: DEFAULT_BATTERY_KWH,
         chargeLimitOn = p.getBoolean("chargeLimitOn", false),
         chargeLimitPct = p.getInt("chargeLimitPct", 80),
         chargeForce = p.getBoolean("chargeForce", false),

@@ -235,14 +235,15 @@ data class Trip(
             val fuel = t.optJSONArray("energyConsumptions")?.objects()?.firstOrNull { it.optString("type") == "Fuel" }
             val km = t.num("distance") ?: 0.0
             val liters = litersOf(fuel?.num("consumption"), km)
+            val f = ChargePower.tripFactor() ?: 1.0   // EV Remote: × set battery size instead of the server's capacity
             return Trip(
                 id = t.optString("id"),
                 startMillis = VehicleStatus.parseIso(t.str("startedAt") ?: t.str("createdAt")),
                 endMillis = VehicleStatus.parseIso(t.str("stoppedAt")),
                 distanceKm = t.num("distance") ?: 0.0,
                 durationSec = t.num("duration"),
-                kwh = electric?.num("consumption")?.let { it / 1000.0 },
-                avgKwhPer100 = electric?.num("avgConsumption")?.let { it / 1000.0 },
+                kwh = electric?.num("consumption")?.let { it / 1000.0 * f },
+                avgKwhPer100 = electric?.num("avgConsumption")?.let { it / 1000.0 * f },
                 // Work it out from distance and time: the car's own "avgSpeed" is in m/s on some models and km/h on others.
                 avgSpeedKmh = t.num("duration")?.takeIf { it >= 60 && km > 0 }?.let { km / (it / 3600.0) }
                     ?: t.optJSONObject("kinetic")?.num("avgSpeed")?.let { v -> if (km > 0) v else null },

@@ -175,7 +175,7 @@ fun SettingsScreen(vm: AppViewModel, ui: UiState, s: AppSettings) {
             }
             if (showChargingSettings) {
                 Divider()
-                LinkRow("Battery size", if (s.batteryKwh > 0) "${s.batteryKwh.toInt()} kWh usable · used to work out charging kW" else "Automatic (from the car) · used to work out charging kW and energy", LfIcons.Bolt, last = true) { editBattery = true }
+                LinkRow("Battery size", "${kwhText(s.batteryKwh)} kWh usable · used for trip energy, charging kW and the charge log", LfIcons.Bolt, last = true) { editBattery = true }
             }
         }
 
@@ -348,18 +348,18 @@ fun SettingsScreen(vm: AppViewModel, ui: UiState, s: AppSettings) {
         )
     }
     if (editBattery) {
-        var txt by remember { mutableStateOf(if (s.batteryKwh > 0) s.batteryKwh.toInt().toString() else "") }
+        var txt by remember { mutableStateOf(kwhText(s.batteryKwh)) }
         AlertDialog(
             onDismissRequest = { editBattery = false }, containerColor = c.card,
             title = { Text("Battery size", color = c.text) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Usable capacity in kWh. Leave empty to use what the car reports. Examples: E-5008 73 kWh, e-208/e-2008 46–51 kWh, plug-in hybrids about 10–12 kWh.", style = Type.small, color = c.muted)
+                    Text("Usable capacity in kWh. Used instead of the energy figures the car reports: trip kWh and kWh/100 km, charging kW and the charge log. Leave empty for 43 kWh (Opel Mokka-e 2022: 46 kWh × ~93 % health).", style = Type.small, color = c.muted)
                     OutlinedTextField(txt, { txt = it.filter { ch -> ch.isDigit() || ch == '.' }.take(5) }, singleLine = true, label = { Text("kWh") }, colors = fieldColors,
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal))
                 }
             },
-            confirmButton = { TextButton(onClick = { val v = txt.toDoubleOrNull()?.takeIf { it in 10.0..200.0 } ?: 0.0; set { it.copy(batteryKwh = v) }; editBattery = false }) { Text("Save", color = c.accentInk) } },
+            confirmButton = { TextButton(onClick = { val v = txt.toDoubleOrNull()?.takeIf { it in 10.0..200.0 } ?: no.lionflow.app.data.DEFAULT_BATTERY_KWH; set { it.copy(batteryKwh = v) }; editBattery = false }) { Text("Save", color = c.accentInk) } },
             dismissButton = { TextButton(onClick = { editBattery = false }) { Text("Cancel", color = c.muted) } },
         )
     }
@@ -556,3 +556,6 @@ private fun FeedbackDialog(vm: AppViewModel, fieldColors: androidx.compose.mater
         dismissButton = { TextButton(onClick = onClose) { Text("Cancel", color = c.muted) } },
     )
 }
+
+/** EV Remote: 43.0 → "43", 42.5 → "42.5". */
+private fun kwhText(v: Double): String = if (v % 1.0 == 0.0) v.toInt().toString() else String.format(java.util.Locale.US, "%.1f", v)
