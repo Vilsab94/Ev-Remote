@@ -38,6 +38,14 @@ object ChargePower {
         settings = s
         vin = currentVin.orEmpty()
         val p = prefs!!
+        // EV Remote: charging samples and report history saved with earlier capacity maths (server figures, 43 kWh)
+        // would mix two capacities in kW and in the log; drop them once.
+        if (!p.getBoolean("evCapV3", false)) {
+            val e = p.edit()
+            // Also the car-trip snapshots (energy at the start of a drive in the old maths).
+            p.all.keys.filter { key -> listOf("s", "hist", "ctLast", "ctOpen").any { key == it || key.startsWith(it + "_") } }.forEach { e.remove(it) }
+            e.putBoolean("evCapV3", true).apply()
+        }
         if (vin.isNotEmpty() && !p.contains(k("kmPerPct")) && p.contains("kmPerPct")) p.edit().putFloat(k("kmPerPct"), p.getFloat(k("kmPerPct"), 0f)).remove("kmPerPct").apply()
     }
 
@@ -48,8 +56,14 @@ object ChargePower {
     /** EV Remote: usable capacity of the new battery from Settings (default 46 kWh), or null when none is set. */
     fun newKwh(): Double? = settings?.value?.batteryKwh?.takeIf { it > 0 }
 
-    /** EV Remote: the last SoH the car sent (health.capacity), kept for reports without it; null if never received. */
-    fun sohPct(): Double? = prefs?.getFloat(k("soh"), 0f)?.toDouble()?.takeIf { it > 0 }
+    /**
+     * EV Remote: the last SoH the car sent (health.capacity), kept for reports without it; null if never received.
+     * Kept per car and also once for any car: the per-car key depends on the VIN being known, which it isn't yet
+     * on some background starts, and then the same car would get 100 % (46 kWh) one time and 93 % (43 kWh) the next.
+     */
+    fun sohPct(): Double? = prefs?.let { p ->
+        p.getFloat(k("soh"), 0f).takeIf { it > 0 } ?: p.getFloat("soh_any", 0f).takeIf { it > 0 }
+    }?.toDouble()
 
     /** EV Remote: usable capacity now = new battery × SoH (100 % until the car has sent one). */
     fun userKwh(): Double? = newKwh()?.let { it * (sohPct() ?: 100.0) / 100.0 }
@@ -60,10 +74,16 @@ object ChargePower {
      * the limit, the charge log and trips logged from the car all use it. The server's capacity is remembered to
      * correct the trip energy the server reports (see [tripFactor]).
      */
+    /** EV Remote: [applyBatterySize] for a status that is not passed through [record] (e.g. parsed again from raw). */
+    fun adjusted(st: VehicleStatus): VehicleStatus = applyBatterySize(st)
+
     private fun applyBatterySize(st: VehicleStatus): VehicleStatus {
         if (st.energyType != "Electric") return st
         val p = prefs
-        st.batteryHealthPct?.let { soh -> if (p != null && p.getFloat(k("soh"), 0f) != soh.toFloat()) p.edit().putFloat(k("soh"), soh.toFloat()).apply() }
+        st.batteryHealthPct?.let { soh ->
+            if (p != null && (p.getFloat(k("soh"), 0f) != soh.toFloat() || p.getFloat("soh_any", 0f) != soh.toFloat()))
+                p.edit().putFloat(k("soh"), soh.toFloat()).putFloat("soh_any", soh.toFloat()).apply()
+        }
         st.capacityKwh?.let { cap -> if (p != null && p.getFloat(k("srvCap"), 0f) != cap.toFloat()) p.edit().putFloat(k("srvCap"), cap.toFloat()).apply() }
         val shown = st.copy(batteryHealthPct = st.batteryHealthPct ?: sohPct())
         val b = userKwh() ?: return shown
@@ -100,6 +120,7 @@ object ChargePower {
     private fun remember(p: android.content.SharedPreferences, st: VehicleStatus) {
         val t = java.text.SimpleDateFormat("dd.MM HH:mm", java.util.Locale.US).format(java.util.Date(st.updatedAtMillis ?: System.currentTimeMillis()))
         val line = "$t level=${st.batteryPct?.toInt()} residual=${st.residualKwh?.let { String.format(java.util.Locale.US, "%.1f", it) }} " +
+            "usable=${st.capacityKwh?.let { String.format(java.util.Locale.US, "%.1f", it) }} soh=${st.batteryHealthPct?.let { String.format(java.util.Locale.US, "%.0f", it) }} " +
             "status=${st.chargingStatus} type=${st.chargeType} plugged=${st.plugged} preheat=${st.preconditioningOn}"
         val old = history()
         if (old.firstOrNull()?.substringAfter(" ")?.substringAfter(" ") == line.substringAfter(" ").substringAfter(" ")) return

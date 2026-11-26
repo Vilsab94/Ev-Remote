@@ -13,8 +13,11 @@ Findings from testing LionFlow with this car (Nov 2026):
    next report 05:00 at 100 %). Background check only reads the server.
    → While charging, wake the car (Waker.wake) before each check (~10 min, ~4 min near limit).
      12 V battery is fine then (DC/DC is running). Never wake often when not plugged in.
-3. ✅ **Done (2026-11-26, not yet tested on the car)** – **Car position missing**: status has no `lastPosition` at all (privacy state None).
+3. ✅ **Done (2026-11-26)** – **Car position missing**: status has no `lastPosition` at all (privacy state None).
    → Also call `/connectedcar/v4/user/vehicles/{id}/lastPosition` and use it.
+   Result on the Mokka-e: lastPosition answers **HTTP 404** → remembered, not asked again.
+   → Fallback: end point of the last trip (if the trips API has end coordinates; the log lists the trip's
+     field names to check), else the last point of the phone's route tracking. Not yet tested on the car.
 4. **Pre-heating by timer not shown when unplugged**: `preconditioning.airConditioning.status`
    stays `Disabled` while the car heats (battery drops ~3 kW, car awake). Plugged in it shows Enabled.
    → If "already running" (error 1) comes back, switch button to Stop. Stop sends `deactivate`

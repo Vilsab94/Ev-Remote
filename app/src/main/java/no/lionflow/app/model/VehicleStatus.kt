@@ -54,6 +54,7 @@ data class VehicleStatus(
     val alarmOn: Boolean? = null,
     val fuelTotalRaw: Double? = null,               // the car's lifetime fuel counter, in its own (undocumented) unit
     val positionAtMillis: Long? = null,             // EV Remote: when the position was taken (lastPosition properties.updatedAt)
+    val positionSource: String? = null,             // EV Remote: null = from the car; "trip" = end of the last trip; "phone" = phone GPS (route tracking)
 ) {
     val isCharging: Boolean get() = chargingStatus == "InProgress"
     /** Privacy mode in the car: it blocks remote commands and can hide the position. */
@@ -233,8 +234,27 @@ data class Trip(
     /** Fuel gauge (%) when the trip started and ended, when the car reports it: fill-ups show up between two trips. */
     val fuelStartPct: Double? = null,
     val fuelEndPct: Double? = null,
+    /** EV Remote: where the trip ended, when the server sends it (used as the car's position when the status has none). */
+    val endLat: Double? = null,
+    val endLon: Double? = null,
 ) {
     companion object {
+        /** EV Remote: names a trip's end point might have; the server's own name isn't documented. */
+        val END_KEYS = listOf("endPosition", "stopPosition", "arrivalPosition", "arrival", "endLocation", "stopLocation",
+            "endPoint", "stopPoint", "destination", "end", "stop", "lastPosition")
+
+        /** EV Remote: lat/lon from a GeoJSON Feature or Point ([lon, lat]), or {latitude, longitude} / {lat, lon|lng}. */
+        fun latLonOf(o: JSONObject?, depth: Int = 0): Pair<Double, Double>? {
+            if (o == null || depth > 3) return null
+            fun ok(lat: Double?, lon: Double?) = if (lat != null && lon != null && !lat.isNaN() && !lon.isNaN() &&
+                lat in -90.0..90.0 && lon in -180.0..180.0 && !(lat == 0.0 && lon == 0.0)) lat to lon else null
+            o.optJSONArray("coordinates")?.let { c -> if (c.length() >= 2) return ok(c.optDouble(1), c.optDouble(0)) }
+            ok(o.num("latitude"), o.num("longitude"))?.let { return it }
+            ok(o.num("lat"), o.num("lon") ?: o.num("lng"))?.let { return it }
+            for (k in listOf("geometry", "position", "location", "point", "coordinates")) latLonOf(o.optJSONObject(k), depth + 1)?.let { return it }
+            return null
+        }
+
         private fun fuelLevel(t: JSONObject, key: String): Double? {
             val list = t.optJSONArray(key)?.objects().orEmpty()
             val tank = list.firstOrNull { it.optString("type") == "Fuel" } ?: list.singleOrNull()?.takeIf { it.optString("type") != "Electric" }
@@ -257,6 +277,7 @@ data class Trip(
             val km = t.num("distance") ?: 0.0
             val liters = litersOf(fuel?.num("consumption"), km)
             val f = ChargePower.tripFactor() ?: 1.0   // EV Remote: × set battery size instead of the server's capacity
+            val end = END_KEYS.firstNotNullOfOrNull { k -> latLonOf(t.optJSONObject(k)) }
             return Trip(
                 id = t.optString("id"),
                 startMillis = VehicleStatus.parseIso(t.str("startedAt") ?: t.str("createdAt")),
@@ -273,6 +294,8 @@ data class Trip(
                 avgLPer100 = liters?.let { it / km * 100 } ?: per100Of(fuel?.num("avgConsumption")),
                 fuelStartPct = fuelLevel(t, "startEnergies"),
                 fuelEndPct = fuelLevel(t, "endEnergies"),
+                endLat = end?.first,
+                endLon = end?.second,
             )
         }
     }

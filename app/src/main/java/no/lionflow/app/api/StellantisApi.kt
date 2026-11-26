@@ -427,7 +427,17 @@ class StellantisApi(private val ctx: Context, private val secure: SecureStore, p
      * under [VehicleStatus.LAST_POSITION_KEY]; VehicleStatus uses it when the status has no position of its own.
      * Never throws: without it the app works as before. The log gets the HTTP result only, never coordinates.
      */
+    private val evPrefs by lazy { ctx.getSharedPreferences("ev_remote", Context.MODE_PRIVATE) }
+
     private suspend fun addLastPosition(v: Vehicle, status: JSONObject) {
+        // The server answered 404 for this car before: it has no such data for it, so don't ask again.
+        val gone = "lastPos404_${v.id}"
+        if (evPrefs.getBoolean(gone, false)) {
+            status.put(VehicleStatus.LAST_POSITION_KEY, JSONObject().put("skipped", "HTTP 404 earlier for this car, not asked again"))
+            val line = "lastPosition: not asked (HTTP 404 before)"
+            if (line != lastPosLog) { lastPosLog = line; lastPosLogAt = System.currentTimeMillis(); try { log?.invoke(line) } catch (_: Exception) { } }
+            return
+        }
         val line = try {
             // The token the status request just used; no renewal on 401 here (a refused position must not touch the sign-in).
             val token = accessToken()
@@ -441,7 +451,8 @@ class StellantisApi(private val ctx: Context, private val secure: SecureStore, p
             throw e
         } catch (e: ApiException) {
             status.put(VehicleStatus.LAST_POSITION_KEY, JSONObject().put("error", "HTTP ${e.code}"))
-            "lastPosition: HTTP ${e.code}"
+            if (e.noData) evPrefs.edit().putBoolean(gone, true).apply()
+            "lastPosition: HTTP ${e.code}" + if (e.noData) " (no data for this car, won't ask again)" else ""
         } catch (e: Exception) {
             status.put(VehicleStatus.LAST_POSITION_KEY, JSONObject().put("error", e.javaClass.simpleName))
             "lastPosition: failed (${e.javaClass.simpleName})"

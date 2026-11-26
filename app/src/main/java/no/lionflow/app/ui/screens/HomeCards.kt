@@ -126,6 +126,21 @@ internal fun WarningsCard(ui: UiState) {
 private fun compassWord(deg: Double): String =
     listOf("north", "north-east", "east", "south-east", "south", "south-west", "west", "north-west")[(((deg % 360 + 360) % 360 + 22.5) / 45).toInt() % 8]
 
+/**
+ * EV Remote: how old the car's position is and where it came from: " · updated 2 h ago" (from the car),
+ * " · from the last trip, 2 h ago" or " · from the phone's GPS, 2 h ago". Empty when the time isn't known.
+ */
+internal fun positionAge(st: VehicleStatus?): String {
+    if (st == null) return ""
+    val t = st.positionAtMillis ?: (if (st.positionSource == null) st.updatedAtMillis else null) ?: return ""
+    val ago = no.lionflow.app.ui.minutesAgo(t, System.currentTimeMillis())
+    return when (st.positionSource) {
+        "trip" -> " · from the last trip, $ago"
+        "phone" -> " · from the phone's GPS, $ago"
+        else -> " · updated $ago"
+    }
+}
+
 /** Where the car is parked, which way it points, and the walk to it in Google Maps. */
 @Composable
 internal fun ParkedCard(vm: AppViewModel, ui: UiState) {
@@ -143,9 +158,13 @@ internal fun ParkedCard(vm: AppViewModel, ui: UiState) {
             Column(Modifier.weight(1f)) {
                 Text(when { st.moving -> "Driving"; where == null -> "Parked"; else -> "Parked at $where" }, style = Type.stat.copy(fontSize = 20.sp), color = c.text, maxLines = 2)
                 Text(
-                    (if (st.heading != null && !st.moving) "Facing ${compassWord(st.heading)}" else if (st.moving) "Where it last reported" else "Where the car last reported") +
-                        // EV Remote: how old the position is (lastPosition's own time, else the status time)
-                        ((st.positionAtMillis ?: st.updatedAtMillis)?.let { " · updated " + no.lionflow.app.ui.minutesAgo(it, System.currentTimeMillis()) } ?: ""),
+                    (when {
+                        st.positionSource == "trip" -> "Where the last trip ended"
+                        st.positionSource == "phone" -> "Where the phone left the car"
+                        st.heading != null && !st.moving -> "Facing ${compassWord(st.heading)}"
+                        st.moving -> "Where it last reported"
+                        else -> "Where the car last reported"
+                    }) + positionAge(st),
                     style = Type.small, color = c.muted,
                 )
             }

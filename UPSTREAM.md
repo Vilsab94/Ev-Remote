@@ -35,6 +35,19 @@ customised for an Opel Mokka-e. All credit for the original app goes to its auth
   (MapScreen.kt) show "· updated 2 h ago". "All car data" raw text lists the lastPosition answer separately.
   The command & error log gets "lastPosition: HTTP <code>" without coordinates (`StellantisApi.log`, set in
   LionFlowApp.kt; logged when the result changes, else at most every 30 min).
+  A 404 (`ApiException.noData`) is remembered per car (`ev_remote` prefs, `lastPos404_<id>`) and the request is
+  not sent again. Fallback position (`AppViewModel.withFallbackPosition()`, applied after status, trips and
+  routes load): end of the newest trip with coordinates (`Trip.endLat/endLon`, read by `Trip.latLonOf()` from
+  `Trip.END_KEYS`: endPosition, stopPosition, arrival… as GeoJSON or lat/lon), else the last point of the newest
+  phone route (route tracking). `VehicleStatus.positionSource` = "trip" / "phone"; `positionAge()` in HomeCards.kt
+  shows "from the last trip, 2 h ago" / "from the phone's GPS, 2 h ago". The log lists the newest trip's field
+  names (no values) and how many trips have an end position.
+- Battery maths, one capacity everywhere: SoH is also saved as `soh_any` (the per-VIN key isn't known on some
+  background starts, which gave 46 kWh one time and 46 × SoH the next). `ChargePower.adjusted()` is used where a
+  status is parsed again without `record()` (AppViewModel.updateMildHybridStatus). Charging samples, report
+  history and car-trip snapshots saved with older maths are dropped once (`evCapV3`). History lines show usable/soh.
+- Overpass: removed the maps.mail.ru mirror (Services.kt `OsmChargers.ENDPOINTS`); overpass-api.de,
+  overpass.private.coffee, overpass.kumi.systems remain.
 - Logo: lightning bolt (#F5C400, outline #1A1A1A) on white – `ic_lion_foreground.xml`,
   `ic_lion_mono.xml`, `ic_notification.xml`, `ic_w_lion.xml`, `LionLogo()` in Components.kt
   (file/function names kept). `launcher_bg` = white.

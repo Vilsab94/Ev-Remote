@@ -190,6 +190,29 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         tags.autoTag(_ui.value.trips, if (s.autoTagRoute && s.routeTracking) ::tripEnds else null)
     }
 
+    /**
+     * EV Remote (PLAN.md item 3): when the car sends no position (no lastPosition in the status, and the separate
+     * request answers 404), the car is shown where the last trip ended (if the trips have end coordinates), else at
+     * the last point the phone recorded (route tracking stops when the phone leaves the car's Bluetooth).
+     */
+    private var routeEndCache: Pair<String, Triple<Double, Double, Long>?>? = null
+    private fun withFallbackPosition(st: VehicleStatus?, trips: List<Trip>, routes: List<no.lionflow.app.route.Route>): VehicleStatus? {
+        if (st == null || isDemo) return st
+        if (st.lat != null && st.positionSource == null) return st   // the car's own position
+        val trip = trips.filter { it.endLat != null && it.endLon != null }.maxByOrNull { it.endMillis ?: it.startMillis ?: 0L }
+        if (trip != null) return st.copy(lat = trip.endLat, lon = trip.endLon, heading = null,
+            positionAtMillis = trip.endMillis ?: trip.startMillis, positionSource = "trip")
+        val route = routes.maxByOrNull { it.endMillis }
+        val end = route?.let { r ->
+            val cached = routeEndCache
+            if (cached != null && cached.first == r.file.path) cached.second
+            else no.lionflow.app.route.Routes.points(r.file).lastOrNull().also { routeEndCache = r.file.path to it }
+        }
+        if (end != null) return st.copy(lat = end.first, lon = end.second, heading = null, positionAtMillis = end.third, positionSource = "phone")
+        return if (st.positionSource != null) st.copy(lat = null, lon = null, positionAtMillis = null, positionSource = null) else st
+    }
+    private fun applyFallbackPosition() = _ui.update { it.copy(status = withFallbackPosition(it.status, it.trips, it.routes)) }
+
     /** Where a trip started and ended, from the route recorded on the phone; null when it wasn't recorded. */
     private val endsCache = HashMap<String, no.lionflow.app.model.TripEnds?>()
     private fun tripEnds(t: Trip): no.lionflow.app.model.TripEnds? {
@@ -342,11 +365,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val current = _ui.value
         val vehicle = current.vehicle ?: return
         current.status?.let { previous ->
-            val status = api.parseStatus(vehicle, previous.raw).copy(
+            // EV Remote: same battery maths (46 × SoH) as every other status, and keep the fallback position.
+            val status = no.lionflow.app.model.ChargePower.adjusted(api.parseStatus(vehicle, previous.raw)).copy(
                 kmToService = previous.kmToService,
                 daysToService = previous.daysToService,
             )
             _ui.update { it.copy(status = status, tab = if (Caps.tab(it.tab, status)) it.tab else Tab.Home) }
+            applyFallbackPosition()
             no.lionflow.app.widget.WidgetData.save(getApplication(), status)
         }
         if (reloadTrips && current.trips.isNotEmpty() && !current.tripsLoading) loadTrips()
@@ -708,6 +733,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     it.copy(vehicle = selected, status = st, statusMissing = missing, refreshing = false,
                         lastRefresh = now, now = now, tab = if (Caps.tab(it.tab, st)) it.tab else Tab.Home)
                 }
+                applyFallbackPosition()
                 if (_ui.value.trips.isEmpty() && !_ui.value.tripsLoading) loadTrips()
                 if (!missing) loadAlerts(selected)
                 if (Caps.battery(st) && !st.preconditioningOn && no.lionflow.app.work.ChargeLimit.due(getApplication(), st)) viewModelScope.launch {
@@ -1110,6 +1136,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun reloadRoutes() = viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
         val r = no.lionflow.app.route.Routes.list(getApplication())
         _ui.update { it.copy(routes = r) }
+        applyFallbackPosition()
     }
 
     fun deleteRoute(r: no.lionflow.app.route.Route) { no.lionflow.app.route.Routes.delete(r); reloadRoutes() }
@@ -1158,9 +1185,21 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 val newest = all.maxOfOrNull { it.startMillis ?: 0L } ?: 0L
                 if (newest > 0) remote.addLog("trips: newest from Peugeot " + SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(Date(newest)))
                 remote.addLog("trips: ${all.size} from the last $days days")
+                // EV Remote: which fields a trip has (names only, no values) and whether any has an end position.
+                res.trips.maxByOrNull { it.optString("startedAt") }?.let { t ->
+                    val fields = t.keys().asSequence().sorted().map { k ->
+                        t.optJSONObject(k)?.let { o -> "$k{" + o.keys().asSequence().sorted().joinToString(",") + "}" }
+                            ?: t.optJSONArray(k)?.optJSONObject(0)?.let { o -> "$k[" + o.keys().asSequence().sorted().joinToString(",") + "]" }
+                            ?: k
+                    }.joinToString(", ")
+                    remote.addLog("trips: fields in the newest trip: $fields")
+                }
+                remote.addLog("trips: end position in ${all.count { it.endLat != null }} of ${all.size} trips" +
+                    if (all.none { it.endLat != null }) " (car position falls back to the phone's route tracking)" else "")
                 val imported = loadImportedTrips()
                 val merged = withCarTrips((all + imported).distinctBy { it.id }).sortedByDescending { it.startMillis ?: 0L }
                 _ui.update { it.copy(trips = merged, tripsLoading = false) }
+                applyFallbackPosition()
                 autoTagNow()
             } catch (e: Exception) {
                 _ui.update { it.copy(tripsLoading = false, trips = withCarTrips(loadImportedTrips()).sortedByDescending { t -> t.startMillis ?: 0L }) }
