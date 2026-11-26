@@ -2,7 +2,10 @@
 
 Findings from testing LionFlow with this car (Nov 2026):
 
-1. **Battery capacity is wrong on the server.** `capacity` = 32960 Wh, `residual` implies ~27 kWh full,
+1. ✅ **Done (2026-11-26)** – usable = "Battery size" (new battery, default 46 kWh) × SoH (health.capacity,
+   last one saved, 100 % until received); energy = level % × usable for trips, charging kW, time estimates and
+   the charge log (see UPSTREAM.md). The optional calibration against the car's trip display is not done.
+   **Battery capacity is wrong on the server.** `capacity` = 32960 Wh, `residual` implies ~27 kWh full,
    real usable is ~43 kWh (46 kWh × SoH 93 %). The battery % (level) is correct.
    Trip kWh (`energyConsumptions[].consumption`) is just Δ% × ~33 kWh.
    → Compute energy from level % × user battery size (default 43 kWh); optionally calibrate a factor
