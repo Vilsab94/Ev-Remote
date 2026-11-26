@@ -53,9 +53,9 @@ val DarkLf = LfColors(
     muted = Color(0xFF9A9EA6), card = Color(0xFF16181B), line = Color(0xFF23262A), line2 = Color(0xFF2A2D32),
     track = Color(0xFF26292E), nav = Color(0xFF121316), navLine = Color(0xFF1F2125), raised = Color(0xFF1E2024),
     raisedBlue = Color(0xFF1E2228), divider = Color(0xFF202327), bar = Color(0xFF3A3E45), icon = Color(0xFF6B7078),
-    slot = Color(0xFF121417), accent = Color(0xFFC6F36B), accentInk = Color(0xFFC6F36B), meter = Color(0xFFC6F36B),
-    orange = Color(0xFFFFB547), orangeInk = Color(0xFFFFB547), blueInk = Color(0xFF8AB4FF),
-    okBg = Color(0xFF1A1E12), okLine = Color(0xFF2F3A1A), okText = Color(0xFFE4F7C2), danger = Color(0xFFE5484D),
+    slot = Color(0xFF121417), accent = Color(0xFFF5C400), accentInk = Color(0xFFF5C400), meter = Color(0xFFF5C400),
+    orange = Color(0xFFFF7F50), orangeInk = Color(0xFFFF8A65), blueInk = Color(0xFF8AB4FF),
+    okBg = Color(0xFF1F1A08), okLine = Color(0xFF3D3410), okText = Color(0xFFFFF1B8), danger = Color(0xFFE5484D),
     onAccent = Color(0xFF0D0E10),
 )
 
@@ -66,9 +66,9 @@ val LightLf = LfColors(
     muted = Color(0xFF58534B), card = Color(0xFFFFFDFA), line = Color(0xFFE6E0D7), line2 = Color(0xFFD3CCC1),
     track = Color(0xFFE5DFD5), nav = Color(0xFFFFFDFA), navLine = Color(0xFFE2DBD1), raised = Color(0xFFF5F1EB),
     raisedBlue = Color(0xFFE9EEF8), divider = Color(0xFFEFEAE3), bar = Color(0xFFC6BEB2), icon = Color(0xFF746E65),
-    slot = Color(0xFFF2EEE8), accent = Color(0xFFC6F36B), accentInk = Color(0xFF3F6600), meter = Color(0xFF558F00),
-    orange = Color(0xFFFFB547), orangeInk = Color(0xFFA35F00), blueInk = Color(0xFF2560C8),
-    okBg = Color(0xFFEEF5D8), okLine = Color(0xFFD0E39C), okText = Color(0xFF2A4300), danger = Color(0xFFC62B30),
+    slot = Color(0xFFF2EEE8), accent = Color(0xFFF5C400), accentInk = Color(0xFF7A5F00), meter = Color(0xFFB38F00),
+    orange = Color(0xFFFF7F50), orangeInk = Color(0xFFB23A12), blueInk = Color(0xFF2560C8),
+    okBg = Color(0xFFFBF3D0), okLine = Color(0xFFEAD98C), okText = Color(0xFF4A3A00), danger = Color(0xFFC62B30),
     onAccent = Color(0xFF0D0E10),
 )
 

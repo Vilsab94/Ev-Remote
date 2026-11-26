@@ -22,7 +22,7 @@ object Backup {
         val data = ctx.applicationInfo.dataDir.let(::File)
         val out = File(File(ctx.cacheDir, "exports").apply { mkdirs() }, "lionflow-backup.zip")
         ZipOutputStream(out.outputStream().buffered()).use { z ->
-            z.putNextEntry(ZipEntry(MARK)); z.write("LionFlow backup ${System.currentTimeMillis()}".toByteArray()); z.closeEntry()
+            z.putNextEntry(ZipEntry(MARK)); z.write("EV Remote backup ${System.currentTimeMillis()}".toByteArray()); z.closeEntry()
             File(data, "shared_prefs").listFiles()?.filter { it.isFile && it.name !in skipPrefs && !it.name.startsWith("androidx.") }?.forEach { f ->
                 z.putNextEntry(ZipEntry("shared_prefs/${f.name}")); f.inputStream().use { it.copyTo(z) }; z.closeEntry()
             }

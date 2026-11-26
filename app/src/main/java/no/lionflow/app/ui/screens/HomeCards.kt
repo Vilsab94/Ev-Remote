@@ -390,7 +390,7 @@ fun HomeEditor(vm: AppViewModel, ui: UiState, s: AppSettings, target: String, on
                 Text(
                     when (target) {
                         "watch" -> "Choose what the watch shows. It changes the next time the watch updates."
-                        "car" -> "Choose the tiles and the lines next to the battery on LionFlow's start screen in the car."
+                        "car" -> "Choose the tiles and the lines next to the battery on EV Remote's start screen in the car."
                         else -> "Choose the cards on Home, and move them with the arrows."
                     },
                     style = Type.small, color = c.muted, modifier = Modifier.padding(bottom = 8.dp),

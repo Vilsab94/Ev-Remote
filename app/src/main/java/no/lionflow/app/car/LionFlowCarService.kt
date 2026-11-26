@@ -160,7 +160,7 @@ abstract class LiveScreen(ctx: CarContext) : Screen(ctx) {
         android.util.Log.e("LionFlowCar", "template failed", e)
         try { CarHub.app(carContext).remote.addLog("Android Auto: ${e.javaClass.simpleName}: ${e.message}") } catch (_: Exception) {}
         MessageTemplate.Builder(tr("Something went wrong showing this screen.") + "\n" + (e.message ?: e.javaClass.simpleName).take(200))
-            .setTitle(tr("LionFlow")).setHeaderAction(Action.APP_ICON).build()
+            .setTitle(tr("EV Remote")).setHeaderAction(Action.APP_ICON).build()
     }
 
     init {
@@ -189,8 +189,8 @@ internal class OverviewScreen(ctx: CarContext, private val ui: CarUi) : LiveScre
     override fun build(): Template {
         val app = CarHub.app(carContext)
         if (!app.api.isSignedIn) {
-            return MessageTemplate.Builder(tr("Open LionFlow on your phone and sign in with your Peugeot account."))
-                .setTitle(tr("LionFlow")).setHeaderAction(Action.APP_ICON).build()
+            return MessageTemplate.Builder(tr("Open EV Remote on your phone and sign in with your Peugeot account."))
+                .setTitle(tr("EV Remote")).setHeaderAction(Action.APP_ICON).build()
         }
         val s = app.settings.value
         val st = CarHub.status.value
@@ -211,7 +211,7 @@ internal class OverviewScreen(ctx: CarContext, private val ui: CarUi) : LiveScre
         val b = GridTemplate.Builder().setTitle(tr(CarHub.message.value ?: s.carName)).setHeaderAction(Action.APP_ICON).setActionStrip(strip.build())
         if (st == null) return b.setLoading(true).build()
 
-        val lion = CarColor.createCustom(0xFFC8F560.toInt(), 0xFFC8F560.toInt())   // LionFlow green
+        val lion = CarColor.createCustom(0xFFF5C400.toInt(), 0xFFF5C400.toInt())   // LionFlow green
         // Each tile has a priority: when the car only allows a few tiles, the highest numbers are dropped first.
         class T(val item: GridItem, val prio: Int)
         val items = mutableListOf<T>()

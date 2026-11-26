@@ -67,7 +67,7 @@ fun HybridStats(vm: AppViewModel, trips: List<Trip>, allTrips: List<Trip>, s: Ap
     LfCard {
         Text("Engine km since oil change", style = Type.label, color = c.text)
         if (since <= 0) {
-            Text("Tell LionFlow when the oil was last changed to count the engine km driven since. This is an estimate, not Peugeot's service counter.", style = Type.small, color = c.muted, modifier = Modifier.padding(top = 4.dp, bottom = 10.dp))
+            Text("Tell EV Remote when the oil was last changed to count the engine km driven since. This is an estimate, not Peugeot's service counter.", style = Type.small, color = c.muted, modifier = Modifier.padding(top = 4.dp, bottom = 10.dp))
             SecondaryButton("Oil was changed today", Modifier.fillMaxWidth()) { vm.settings.update { it.copy(oilChangeMillis = System.currentTimeMillis()) } }
         } else {
             val after = allTrips.filter { (it.startMillis ?: 0L) >= since }

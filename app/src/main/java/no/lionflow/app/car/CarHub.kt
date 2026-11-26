@@ -146,9 +146,9 @@ object CarHub {
     fun actionsAllowed(ctx: Context): String? {
         val app = app(ctx)
         return when {
-            !app.api.isSignedIn -> "Sign in to LionFlow on your phone first"
-            !app.settings.value.carActions -> "Remote actions in the car are off in LionFlow settings"
-            !app.remote.isSetUp -> "Set up remote control in LionFlow on your phone first"
+            !app.api.isSignedIn -> "Sign in to EV Remote on your phone first"
+            !app.settings.value.carActions -> "Remote actions in the car are off in EV Remote settings"
+            !app.remote.isSetUp -> "Set up remote control in EV Remote on your phone first"
             else -> null
         }
     }
@@ -294,13 +294,13 @@ object CarHub {
     }
 
     fun detailLine(ctx: Context): String {
-        val st = _status.value ?: return "LionFlow"
+        val st = _status.value ?: return "EV Remote"
         val s = app(ctx).settings.value
         val parts = mutableListOf<String>()
         if (st.energyType != "Fuel") parts += chargingLine(st)
         st.outsideTempC?.let { parts += "${fmtTemp(it, s)} outside" }
         if (st.preconditioningOn) parts += "pre-heating"
-        return parts.joinToString(" · ").ifBlank { "LionFlow" }
+        return parts.joinToString(" · ").ifBlank { "EV Remote" }
     }
 
     /** The car's names for doors and hatches, as people say them. */

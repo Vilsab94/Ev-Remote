@@ -125,7 +125,7 @@ fun ChargeLogSection(ui: UiState, s: AppSettings) {
 
     // ---- sessions ----
     if (sessions.isEmpty()) {
-        if (active == null) Text("No charging sessions yet. LionFlow logs a session each time it sees the car charging (it checks every ~10 minutes while charging).", style = Type.small, color = c.muted)
+        if (active == null) Text("No charging sessions yet. EV Remote logs a session each time it sees the car charging (it checks every ~10 minutes while charging).", style = Type.small, color = c.muted)
     } else {
         LfCard {
             val list = if (showAll) sessions else sessions.take(12)

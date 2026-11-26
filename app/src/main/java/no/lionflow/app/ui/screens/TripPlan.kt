@@ -550,7 +550,7 @@ fun PlanResult(p: Planner, s: AppSettings, options: Boolean, onShow: (Double, Do
 
         Text(
             if (p.model.trips > 0) "Battery use is worked out from your ${p.model.trips} longest trips (${String.format(Locale.US, "%.1f", p.model.at(90.0))} kWh/100 km at 90 km/h)."
-            else "Battery use is a typical figure until LionFlow has your trips.",
+            else "Battery use is a typical figure until EV Remote has your trips.",
             style = Type.tiny, color = c.muted,
         )
         p.route?.let { rt ->
@@ -568,7 +568,7 @@ fun PlanResult(p: Planner, s: AppSettings, options: Boolean, onShow: (Double, Do
         }
         Text(
             if (p.fitCount > 0) "Charging time matches your last ${p.fitCount} fast charges (top speed about ${p.carKw.roundToInt()} kW)."
-            else "Charging time is a typical figure until LionFlow has seen your fast charges.",
+            else "Charging time is a typical figure until EV Remote has seen your fast charges.",
             style = Type.tiny, color = c.muted,
         )
         if (plan.stops.any { it.cost != null }) Text("Prices are the usual drop-in prices (checked ${p.pricesAsOf}), not live prices.", style = Type.tiny, color = c.muted)

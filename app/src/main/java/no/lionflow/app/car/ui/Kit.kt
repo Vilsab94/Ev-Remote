@@ -33,7 +33,7 @@ class Palette(
             true,
             bg = 0xFF0E1013.toInt(), card = 0xFF191C20.toInt(), raised = 0xFF262A30.toInt(), line = 0xFF2B3037.toInt(),
             text = 0xFFF4F5F7.toInt(), muted = 0xFF9BA2AC.toInt(),
-            accent = 0xFFC6F36B.toInt(), accentInk = 0xFFC6F36B.toInt(), onAccent = 0xFF10140A.toInt(),
+            accent = 0xFFF5C400.toInt(), accentInk = 0xFFF5C400.toInt(), onAccent = 0xFF10140A.toInt(),
             orange = 0xFFFFA347.toInt(), red = 0xFFFF6164.toInt(), driven = 0xFF4A5059.toInt(),
         )
         val LIGHT = Palette(

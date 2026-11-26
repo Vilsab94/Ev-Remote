@@ -157,8 +157,6 @@ fun SettingsScreen(vm: AppViewModel, ui: UiState, s: AppSettings) {
         SectionTitle("Home screens")
         GroupCard {
             LinkRow("Phone", "Choose the cards on Home and their order", LfIcons.Home) { editHome = "phone" }
-            LinkRow("Watch", "Choose what the watch shows", LfIcons.Gear) { editHome = "watch" }
-            LinkRow("Android Auto", "Choose the tiles and lines on the start screen in the car", LfIcons.Car) { editHome = "car" }
             ToggleRow("Note when the car is being driven", "At the top of Home", s.bannerDriving) { v -> set { it.copy(bannerDriving = v) } }
             ToggleRow("Note when privacy mode is on", "It blocks remote commands and can hide where the car is", s.bannerPrivacy) { v -> set { it.copy(bannerPrivacy = v) } }
             ToggleRow("Note when fog lights are left on", "While the car is parked", s.bannerFog, showDivider = false) { v -> set { it.copy(bannerFog = v) } }
@@ -214,14 +212,14 @@ fun SettingsScreen(vm: AppViewModel, ui: UiState, s: AppSettings) {
             LinkRow("Back up app data", "Settings, saved trips, tags and logs in one file, to move to a new install", LfIcons.Download) {
                 try { platform.share(no.lionflow.app.model.Backup.export(ctx), "application/zip") } catch (_: Exception) { vm.toastText("Couldn't make the backup") }
             }
-            LinkRow("Restore from backup", "Puts everything back from a LionFlow backup file", LfIcons.Upload) {
+            LinkRow("Restore from backup", "Puts everything back from an EV Remote backup file", LfIcons.Upload) {
                 restorer.launch(arrayOf("application/zip", "application/octet-stream", "*/*"))
             }
             LinkRow("Export driving data", "Trips as a CSV file", LfIcons.Download) {
                 if (ui.trips.isEmpty()) vm.loadTrips()
                 platform.share(vm.exportTripsCsv(), "text/csv")
             }
-            LinkRow("Import driving data", "From LionFlow, or the official app's CSV or .myp export", LfIcons.Upload) {
+            LinkRow("Import driving data", "From EV Remote, or the official app's CSV or .myp export", LfIcons.Upload) {
                 importer.launch(arrayOf("text/*", "text/csv", "application/csv", "*/*"))
             }
             ToggleRow("Tag similar trips automatically", "A trip with about the same distance and average speed as one you tagged gets the same tag", s.autoTagTrips) { v -> vm.setAutoTag(v) }
@@ -255,7 +253,7 @@ fun SettingsScreen(vm: AppViewModel, ui: UiState, s: AppSettings) {
         SectionTitle("App updates")
         GroupCard {
             LinkRow("What's new", "Everything added and fixed, version by version", LfIcons.Bolt) { vm.loadReleases(); showChanges = true }
-            LinkRow("Send feedback", "Ideas, problems or bugs, straight to the developer", LfIcons.Mail, last = true) { showFeedback = true }
+            LinkRow("Source code", "github.com/Vilsab94/Ev-Remote · based on LionFlow by thocubeat", LfIcons.Globe, last = true) { platform.openUrl("https://github.com/Vilsab94/Ev-Remote") }
         }
         if (showChanges) androidx.compose.material3.AlertDialog(
             onDismissRequest = { showChanges = false }, containerColor = c.card,
@@ -277,20 +275,9 @@ fun SettingsScreen(vm: AppViewModel, ui: UiState, s: AppSettings) {
                     ui.updateStatus ?: "You have ${BuildConfig.VERSION_NAME}",
                     LfIcons.Download,
                 ) { if (ui.update != null) { if (ui.needsInstallPermission) platform.openInstallPermission() else vm.installUpdate() } else vm.checkForUpdate(force = true) }
-                ToggleRow("Check for updates when the app opens", "Shows a popup when a new version is ready. Only versions signed with LionFlow's key are installed", s.autoUpdate, showDivider = false) { v -> set { it.copy(autoUpdate = v) } }
+                ToggleRow("Check for updates when the app opens", "Shows a popup when a new version is ready. Only versions signed with EV Remote's key are installed", s.autoUpdate, showDivider = false) { v -> set { it.copy(autoUpdate = v) } }
             }
         }
-
-        SectionTitle("Android Auto")
-        GroupCard {
-            ToggleRow("Line up the video picture with the car's sound", "YouTube and NRK in the car. Android Auto plays sound a little late. This holds the picture back by about 0.4 seconds so they match. Turn it off if playback looks choppy", s.carVideoSync) { v -> set { it.copy(carVideoSync = v) } }
-            ToggleRow("Plain lists in the car", "For cars whose screen can't be touched (a dial or a touchpad instead). Android Auto's own tiles and lists are shown in place of the screens LionFlow draws. Takes effect the next time the car connects", s.carPlain, showDivider = false) { v -> set { it.copy(carPlain = v) } }
-        }
-        Text(
-            if (vm.fromPlay) "Installed from Google Play, so LionFlow shows up in Android Auto's app launcher."
-            else "Android Auto only shows LionFlow when it's installed from Google Play (internal test link).",
-            style = Type.tiny, color = c.muted, modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp),
-        )
 
         SectionTitle("Appearance")
         GroupCard {
@@ -321,20 +308,10 @@ fun SettingsScreen(vm: AppViewModel, ui: UiState, s: AppSettings) {
             )
         }
 
-        SectionTitle("Support LionFlow")
-        GroupCard {
-            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("LionFlow is free, has no ads and never will. It's made in my spare time. If it makes your Peugeot a bit nicer to live with, a small donation helps keep it going. Thank you! ☕", style = Type.small, color = c.text2)
-                no.lionflow.app.ui.components.PrimaryButton("Buy me a coffee on Ko-fi", Modifier.fillMaxWidth()) {
-                    platform.openUrl("https://ko-fi.com/thocubeat")
-                }
-            }
-        }
-
         if (vm.isDemo) SecondaryButton("Exit demo", Modifier.fillMaxWidth().padding(top = 14.dp), textColor = c.danger) { vm.exitDemo() }
         else SecondaryButton("Sign out", Modifier.fillMaxWidth().padding(top = 14.dp), textColor = c.danger) { confirmSignOut = true }
         Text(
-            "LionFlow ${BuildConfig.VERSION_NAME} · Unofficial: not affiliated with Stellantis, Peugeot, Citroën, DS Automobiles, Opel or Vauxhall.\nMap and chargers © OpenStreetMap contributors, OpenFreeMap · Weather MET Norway · Chargers NOBIL (optional)",
+            "EV Remote ${BuildConfig.VERSION_NAME} · Unofficial: not affiliated with Stellantis, Peugeot, Citroën, DS Automobiles, Opel or Vauxhall. Based on LionFlow by thocubeat (GPL-3.0).\nMap and chargers © OpenStreetMap contributors, OpenFreeMap · Weather MET Norway · Chargers NOBIL (optional)",
             style = Type.tiny, color = c.muted, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
         )
     }
@@ -395,7 +372,7 @@ fun SettingsScreen(vm: AppViewModel, ui: UiState, s: AppSettings) {
             confirmButton = { TextButton(onClick = {
                 askRestore = null
                 val ok = try { no.lionflow.app.model.Backup.restore(ctx, uri) } catch (_: Exception) { false }
-                if (!ok) vm.toastText("That isn't a LionFlow backup")
+                if (!ok) vm.toastText("That isn't an EV Remote backup")
             }) { Text("Restore", color = c.accentInk) } },
             dismissButton = { TextButton(onClick = { askRestore = null }) { Text("Cancel", color = c.muted) } },
         )
@@ -558,7 +535,7 @@ private fun FeedbackDialog(vm: AppViewModel, fieldColors: androidx.compose.mater
         confirmButton = {
             TextButton(enabled = msg.isNotBlank(), onClick = {
                 val body = msg.trim() + if (details) "\n\n---- Technical details ----\n$tech" else ""
-                val subject = "LionFlow feedback (${no.lionflow.app.BuildConfig.VERSION_NAME})"
+                val subject = "EV Remote feedback (${no.lionflow.app.BuildConfig.VERSION_NAME})"
                 // A "send" with an e-mail-only selector: opens the e-mail app with everything filled in, without the share sheet.
                 val mail = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
                     putExtra(android.content.Intent.EXTRA_EMAIL, arrayOf("antpqth@gmail.com"))

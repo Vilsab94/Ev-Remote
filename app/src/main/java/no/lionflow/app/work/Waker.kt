@@ -26,7 +26,7 @@ object Waker {
         val nm = NotificationManagerCompat.from(ctx)
         if (Build.VERSION.SDK_INT >= 26) nm.createNotificationChannel(android.app.NotificationChannel(CHANNEL, tr("Waking the car"), android.app.NotificationManager.IMPORTANCE_LOW))
         val n = NotificationCompat.Builder(ctx, CHANNEL).setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("LionFlow").setContentText(tr(text)).setTimeoutAfter(20_000).setAutoCancel(true).setPriority(NotificationCompat.PRIORITY_LOW).build()
+            .setContentTitle("EV Remote").setContentText(tr(text)).setTimeoutAfter(20_000).setAutoCancel(true).setPriority(NotificationCompat.PRIORITY_LOW).build()
         try { nm.notify(20, n) } catch (_: SecurityException) { }
     }
 
@@ -66,7 +66,7 @@ class WakeWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
         val s = app.settings.value
         if (!app.api.isSignedIn || !app.remote.isSetUp) return Result.success()
         if (s.bgWakeHours <= 0) return Result.success()
-        Waker.headsUp(app, "Waking your car to update LionFlow")
+        Waker.headsUp(app, "Waking your car to update EV Remote")
         return try { Waker.wakeAndRefresh(app); Result.success() } catch (e: Exception) { Result.success() }
     }
 }

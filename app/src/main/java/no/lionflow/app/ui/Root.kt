@@ -126,7 +126,7 @@ fun LionFlowRoot(vm: AppViewModel, platform: Platform) {
                         title = { Text("Update available", color = c.text) },
                         text = {
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text("LionFlow ${upd.name} is ready. You have ${no.lionflow.app.BuildConfig.VERSION_NAME}.", style = Type.body, color = c.text)
+                                Text("EV Remote ${upd.name} is ready. You have ${no.lionflow.app.BuildConfig.VERSION_NAME}.", style = Type.body, color = c.text)
                                 // Everything since the installed version, not only the newest release.
                                 LaunchedEffect(Unit) { vm.loadReleases() }
                                 val since = vm.releases.filter { it.versionCode > no.lionflow.app.BuildConfig.VERSION_CODE }

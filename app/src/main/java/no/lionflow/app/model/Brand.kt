@@ -54,9 +54,9 @@ object Brands {
 
     /** What needs a paid or activated service, in plain words, for the chosen brand. */
     fun subscriptionNotice(b: Brand = current): String =
-        "What needs a subscription (decided by ${b.display}, not by LionFlow):\n" +
+        "What needs a subscription (decided by ${b.display}, not by EV Remote):\n" +
         "• Status, battery, range, trips and service: your ${b.app} account.\n" +
         "• Charging control and pre-heating (electric and plug-in hybrid cars): ${b.eRemotePack}.\n" +
         "• Lock, unlock, lights and horn: ${b.doorsPack}.\n" +
-        "Which pack is included, and for how long, depends on the model, country and order date. Check and activate it in ${b.app}; LionFlow can't activate it for you."
+        "Which pack is included, and for how long, depends on the model, country and order date. Check and activate it in ${b.app}; EV Remote can't activate it for you."
 }

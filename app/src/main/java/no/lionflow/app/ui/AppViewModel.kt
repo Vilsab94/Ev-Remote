@@ -123,7 +123,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val s = settings.value
         val play = no.lionflow.app.plan.SavedRoutes.fromPlay(app)
         val sb = StringBuilder()
-        sb.append("LionFlow ${no.lionflow.app.BuildConfig.VERSION_NAME} (${if (play) "Google Play" else "GitHub"})\n")
+        sb.append("EV Remote ${no.lionflow.app.BuildConfig.VERSION_NAME} (${if (play) "Google Play" else "GitHub"})\n")
         sb.append("Android ${android.os.Build.VERSION.RELEASE} (SDK ${android.os.Build.VERSION.SDK_INT}) · ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}\n")
         sb.append("Language ${no.lionflow.app.ui.l10n.L10n.lang} · ${java.util.TimeZone.getDefault().id}\n")
         if (v != null) sb.append("Car: ${v.brand} · ${v.motorization} · model code ${v.vin.take(8)}\n")
@@ -150,7 +150,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** What the car reports about battery and fuel, word for word: for finding out why a level shows wrong. */
     private fun energyLog(): String {
         val raw = _ui.value.status?.raw ?: return ""
-        val sb = StringBuilder("LionFlow ${no.lionflow.app.BuildConfig.VERSION_NAME} · car energy data\n")
+        val sb = StringBuilder("EV Remote ${no.lionflow.app.BuildConfig.VERSION_NAME} · car energy data\n")
         raw.optJSONArray("energies")?.objects()?.forEach { e ->
             val ch = e.optJSONObject("extension")?.optJSONObject("electric")?.optJSONObject("charging")
             val load = e.optJSONObject("extension")?.optJSONObject("electric")?.optJSONObject("battery")?.optJSONObject("load")
@@ -728,7 +728,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 val down = e is no.lionflow.app.api.ApiException && e.code in 502..504
                 if (down) {
                     // The brand's servers are down or busy: say so once in plain words and try again by itself.
-                    if (serverRetries == 0) toast(no.lionflow.app.ui.l10n.L10n.tr("Peugeot's servers are down or busy right now (error ${e.code}). Your car is fine. LionFlow will try again in a minute."))
+                    if (serverRetries == 0) toast(no.lionflow.app.ui.l10n.L10n.tr("Peugeot's servers are down or busy right now (error ${e.code}). Your car is fine. EV Remote will try again in a minute."))
                     if (serverRetries < 3) {
                         serverRetries++
                         viewModelScope.launch { kotlinx.coroutines.delay(60_000L * serverRetries); refresh() }
@@ -990,7 +990,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     _ui.update { it.copy(update = r, updateDismissed = if (same) it.updateDismissed && !force else false) }
                 } else {
                     _ui.update { it.copy(update = null) }
-                    if (force) toast("LionFlow is up to date (${no.lionflow.app.BuildConfig.VERSION_NAME})")
+                    if (force) toast("EV Remote is up to date (${no.lionflow.app.BuildConfig.VERSION_NAME})")
                 }
             } catch (e: Exception) {
                 if (force) toast("Couldn't check for updates — ${no.lionflow.app.api.Http.describe(e)}")
@@ -1005,7 +1005,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val ctx = getApplication<Application>()
         _ui.update { it.copy(updateDismissed = false) }
         if (!no.lionflow.app.update.Updater.canInstall(ctx)) {
-            _ui.update { it.copy(needsInstallPermission = true, updateStatus = "One time: allow LionFlow to install updates, then come back") }
+            _ui.update { it.copy(needsInstallPermission = true, updateStatus = "One time: allow EV Remote to install updates, then come back") }
             return
         }
         if (_ui.value.updateStatus?.startsWith("Downloading") == true) return
@@ -1015,7 +1015,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 val f = no.lionflow.app.update.Updater.download(ctx, r) { p -> _ui.update { it.copy(updateStatus = "Downloading ${r.name}… $p %") } }
                 if (!no.lionflow.app.update.Updater.sameSigner(ctx, f)) {
                     f.delete()
-                    _ui.update { it.copy(updateStatus = "The download isn't signed with LionFlow's key — not installed") }
+                    _ui.update { it.copy(updateStatus = "The download isn't signed with EV Remote's key — not installed") }
                     remote.addLog("update ${r.tag} rejected: signature mismatch")
                     return@launch
                 }
@@ -1279,6 +1279,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private companion object {
-        const val NO_REMOTE = "Peugeot doesn't offer remote control for this car to LionFlow. Check that remote commands (like pre-heating) work in the MyPeugeot app and that remote services are activated there (they need a subscription from the car brand, see Settings). You can still skip and use LionFlow for status, charging and trips."
+        const val NO_REMOTE = "Peugeot doesn't offer remote control for this car to EV Remote. Check that remote commands (like pre-heating) work in the MyPeugeot app and that remote services are activated there (they need a subscription from the car brand, see Settings). You can still skip and use EV Remote for status, charging and trips."
     }
 }

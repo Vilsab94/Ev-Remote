@@ -109,7 +109,7 @@ fun ChargingScreen(vm: AppViewModel, ui: UiState, s: AppSettings, wide: Boolean)
             confirm(if (start) "Start charging now" else "Stop charging") { vm.charging(start) }
         }
         Text(
-            "Charging power is worked out by LionFlow (the car only reports range per hour): measured from the energy added between two car reports, or estimated from the time left until then. Scheduled start time is set in the car or in the MyPeugeot app; “Stop charging” works by turning the scheduled start on (the car then waits for that time). “Turn off” beside it lets the car charge as soon as it is plugged in again.",
+            "Charging power is worked out by EV Remote (the car only reports range per hour): measured from the energy added between two car reports, or estimated from the time left until then. Scheduled start time is set in the car or in the MyPeugeot app; “Stop charging” works by turning the scheduled start on (the car then waits for that time). “Turn off” beside it lets the car charge as soon as it is plugged in again.",
             style = Type.tiny, color = c.muted,
         )
         if (vm.remoteReady) ChargeLimitCard(vm, ui, s) else RemoteSetupHint(vm)
@@ -288,7 +288,7 @@ private fun TimeToTarget(ui: UiState, s: AppSettings) {
         Text("Reaches $target % at $clock", style = Type.label.copy(fontSize = 18.sp), color = c.text)
         Text("In " + (if (left >= 60) "${left / 60} h ${left % 60} min" else "$left min"), style = Type.small, color = c.muted)
         Spacer(Modifier.height(10.dp))
-        SecondaryButton("Set alarm for $clock", Modifier.fillMaxWidth()) { platform.setAlarm(h, m, "LionFlow: car at $target %") }
+        SecondaryButton("Set alarm for $clock", Modifier.fillMaxWidth()) { platform.setAlarm(h, m, "EV Remote: car at $target %") }
         Text("Worked out from the car's time to 100 %. Handy if the automatic stop doesn't work for you: stop charging yourself when the alarm rings.", style = Type.tiny, color = c.muted, modifier = Modifier.padding(top = 8.dp))
     }
 }

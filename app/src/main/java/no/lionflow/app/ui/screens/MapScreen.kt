@@ -223,7 +223,7 @@ fun MapScreen(vm: AppViewModel, ui: UiState, s: AppSettings) {
         // Top: trip search and filters, or the trip being planned
         if (!p.open) {
             Column(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBars).padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                if (electric) Row(
+                if (false && electric) Row( // EV Remote: trip planner hidden
                     Modifier.widthIn(max = 420.dp).fillMaxWidth().heightIn(min = 48.dp).shadow(6.dp, CircleShape).clip(CircleShape).background(c.card).border(1.dp, c.line, CircleShape)
                         .clickable(role = Role.Button) {
                             p.open = true; p.editing = true; selected = null

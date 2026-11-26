@@ -56,7 +56,7 @@ class RouteService : Service(), LocationListener {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) { finish(); stopSelf(); return START_NOT_STICKY }
         if (file != null) return START_STICKY
-        val n = notification(tr("Recording route"), tr("LionFlow is saving your route while connected to the car"))
+        val n = notification(tr("Recording route"), tr("EV Remote is saving your route while connected to the car"))
         try {
             if (Build.VERSION.SDK_INT >= 29) startForeground(ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION) else startForeground(ID, n)
         } catch (e: Exception) {

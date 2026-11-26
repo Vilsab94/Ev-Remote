@@ -55,7 +55,7 @@ class WearService : WearableListenerService() {
 
     private suspend fun status(): JSONObject {
         val app = app
-        if (!app.api.isSignedIn) return JSONObject().put("error", tr("Open LionFlow to sign in"))
+        if (!app.api.isSignedIn) return JSONObject().put("error", tr("Open EV Remote to sign in"))
         return try {
             val v = app.api.currentVehicle() ?: return JSONObject().put("error", tr("No car on this account"))
             val st = ChargePower.record(app.api.readStatus(v))
@@ -123,7 +123,7 @@ class WearService : WearableListenerService() {
     private suspend fun command(node: String, cmd: String) {
         val app = app
         if (!app.api.isSignedIn || !app.remote.isSetUp) {
-            reply(node, "/lionflow/cmd/reply", JSONObject().put("text", tr("Set up remote control in LionFlow on your phone first"))); return
+            reply(node, "/lionflow/cmd/reply", JSONObject().put("text", tr("Set up remote control in EV Remote on your phone first"))); return
         }
         val label = when (cmd) { "unlock" -> "Unlock"; "lock" -> "Lock"; "lights" -> "Flash lights"; "preheat" -> "Pre-heating"; else -> return }
         val t = Tracker(

@@ -68,9 +68,9 @@ fun ChargeLimitCard(vm: AppViewModel, ui: UiState, s: AppSettings) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("Stop at ${pct.toInt()} %", style = Type.body.copy(fontWeight = FontWeight.SemiBold), color = if (s.chargeLimitOn) c.text else c.muted)
-                Text("LionFlow stops charging for you", style = Type.tiny, color = c.muted)
+                Text("EV Remote stops charging for you", style = Type.tiny, color = c.muted)
             }
-            Toggle(s.chargeLimitOn, "LionFlow charge limit") { on ->
+            Toggle(s.chargeLimitOn, "EV Remote charge limit") { on ->
                 vm.settings.update { it.copy(chargeLimitOn = on, chargeForce = if (on) it.chargeForce else false) }
                 // Without our limit, "charge past the car's limit" would just mean 100 %: put the car back on its own limit.
                 if (!on && s.chargeForce && st != null && st.chargeType == "Full") vm.setCarChargeLimit(true)
@@ -83,7 +83,7 @@ fun ChargeLimitCard(vm: AppViewModel, ui: UiState, s: AppSettings) {
             colors = SliderDefaults.colors(thumbColor = c.accent, activeTrackColor = c.accent, inactiveTrackColor = c.raised),
         )
         Text(
-            "Works with any charger, also ones that ignore the car's limit. LionFlow checks every few minutes while charging (more often near the limit), so it can end 1–2 % over. The phone needs internet, and remote control must be set up.",
+            "Works with any charger, also ones that ignore the car's limit. EV Remote checks every few minutes while charging (more often near the limit), so it can end 1–2 % over. The phone needs internet, and remote control must be set up.",
             style = Type.tiny, color = c.muted,
         )
         Text(
@@ -96,21 +96,21 @@ fun ChargeLimitCard(vm: AppViewModel, ui: UiState, s: AppSettings) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("Charge past the car's limit", style = Type.body.copy(fontWeight = FontWeight.SemiBold), color = c.text)
-                    Text("Car charges to 100 %, LionFlow stops it at ${pct.toInt()} %", style = Type.tiny, color = c.muted)
+                    Text("Car charges to 100 %, EV Remote stops it at ${pct.toInt()} %", style = Type.tiny, color = c.muted)
                 }
                 Toggle(s.chargeForce, "Charge past the car's limit") { on ->
                     if (on) { warn = true }
                     else { vm.settings.update { it.copy(chargeForce = false) }; if (st?.chargeType == "Full") vm.setCarChargeLimit(true) }
                 }
             }
-            if (s.chargeForce) Text("Active: the car is set to charge to 100 %. If your phone is offline or LionFlow can't run in the background, it will not stop at ${s.chargeLimitPct} %. After a stop, the car stays like this until you unplug, then goes back to its daily limit.", style = Type.tiny, color = c.orangeInk)
+            if (s.chargeForce) Text("Active: the car is set to charge to 100 %. If your phone is offline or EV Remote can't run in the background, it will not stop at ${s.chargeLimitPct} %. After a stop, the car stays like this until you unplug, then goes back to its daily limit.", style = Type.tiny, color = c.orangeInk)
             if (warn) androidx.compose.material3.AlertDialog(
                 onDismissRequest = { warn = false },
                 title = { Text("Charge past the car's limit?") },
                 text = { Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("The car will be told to charge to 100 %, and LionFlow will then stop it at ${pct.toInt()} %.")
-                    Text("This only works if your phone has internet, LionFlow is allowed to run in the background and the car answers. If any of these fail, the car keeps charging to 100 %. Doing that often is not good for the battery in the long run.")
-                    Text("It can end 1–2 % over your limit. LionFlow is an unofficial app and comes without any warranty. You use this at your own risk.")
+                    Text("The car will be told to charge to 100 %, and EV Remote will then stop it at ${pct.toInt()} %.")
+                    Text("This only works if your phone has internet, EV Remote is allowed to run in the background and the car answers. If any of these fail, the car keeps charging to 100 %. Doing that often is not good for the battery in the long run.")
+                    Text("It can end 1–2 % over your limit. EV Remote is an unofficial app and comes without any warranty. You use this at your own risk.")
                 } },
                 confirmButton = { androidx.compose.material3.TextButton(onClick = { warn = false; vm.settings.update { it.copy(chargeForce = true) }; if (st != null) vm.setCarChargeLimit(false) }) { Text("I understand, turn on") } },
                 dismissButton = { androidx.compose.material3.TextButton(onClick = { warn = false }) { Text("Cancel") } },
@@ -151,7 +151,7 @@ private fun ChargeWindowSection(vm: AppViewModel, s: AppSettings, st: no.lionflo
     }
     if (st != null) WindowEstimate(s, st)
     if (s.chargeWindowOn) Text(
-        "The car waits until %s and starts by itself. LionFlow stops charging at %s, and starts it if you plug in between these times. Needs internet on the phone and remote control.".let {
+        "The car waits until %s and starts by itself. EV Remote stops charging at %s, and starts it if you plug in between these times. Needs internet on the phone and remote control.".let {
             no.lionflow.app.ui.l10n.L10n.tr(it).replaceFirst("%s", hm(s.chargeWindowFrom)).replaceFirst("%s", hm(s.chargeWindowTo))
         },
         style = Type.tiny, color = c.muted,

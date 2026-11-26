@@ -117,7 +117,7 @@ private fun FuelPriceDialog(vm: AppViewModel, s: AppSettings, currency: String, 
                 Text("What a litre costs you. It is used for the fuel cost of trips, months and fill-ups. The currency is the one set for charging costs.", style = Type.small, color = c.muted)
                 OutlinedTextField(price, { price = it.replace(',', '.').filter { ch -> ch.isDigit() || ch == '.' }.take(7) }, singleLine = true,
                     label = { androidx.compose.material3.Text("$currency/l") }, colors = colors, keyboardOptions = numbers)
-                Text("Tank size in litres. Leave it empty and LionFlow works it out from the fuel gauge.", style = Type.small, color = c.muted)
+                Text("Tank size in litres. Leave it empty and EV Remote works it out from the fuel gauge.", style = Type.small, color = c.muted)
                 OutlinedTextField(tank, { tank = it.filter { ch -> ch.isDigit() }.take(3) }, singleLine = true,
                     label = { androidx.compose.material3.Text("l") }, colors = colors, keyboardOptions = numbers)
             }

@@ -113,11 +113,11 @@ fun SubscriptionNotice() {
         LfIcon(LfIcons.Shield, c.orangeInk, 18.dp)
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("What needs a subscription", style = Type.label, color = c.text)
-            Text("This is decided by ${b.display}, not by LionFlow.", style = Type.tiny, color = c.muted)
+            Text("This is decided by ${b.display}, not by EV Remote.", style = Type.tiny, color = c.muted)
             Text("Status, battery, range, trips and service: your ${b.app} account is enough.", style = Type.tiny.copy(lineHeight = 17.sp), color = c.text2)
             Text("Charging control and pre-heating (electric and plug-in hybrid cars): ${b.eRemotePack}.", style = Type.tiny.copy(lineHeight = 17.sp), color = c.text2)
             Text("Lock, unlock, lights and horn: ${b.doorsPack}.", style = Type.tiny.copy(lineHeight = 17.sp), color = c.text2)
-            Text("Which pack is included, and for how long, depends on the model, country and order date. Check and activate it in ${b.app}. LionFlow can't activate it for you.", style = Type.tiny.copy(lineHeight = 17.sp), color = c.muted)
+            Text("Which pack is included, and for how long, depends on the model, country and order date. Check and activate it in ${b.app}. EV Remote can't activate it for you.", style = Type.tiny.copy(lineHeight = 17.sp), color = c.muted)
         }
     }
 }

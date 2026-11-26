@@ -190,7 +190,7 @@ private fun SmartScheduleCard(vm: AppViewModel, ui: UiState) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("Smart schedule", style = Type.label, color = c.text)
-                Text("Your pre-heat schedules only run when the temperature fits. About an hour before one is due, LionFlow checks the forecast and keeps it on, or switches it off for that time.", style = Type.tiny, color = c.muted)
+                Text("Your pre-heat schedules only run when the temperature fits. About an hour before one is due, EV Remote checks the forecast and keeps it on, or switches it off for that time.", style = Type.tiny, color = c.muted)
             }
             Toggle(on, "Smart schedule") { v -> vm.setSmart(if (v) mode else "", s.smartTemp) }
         }

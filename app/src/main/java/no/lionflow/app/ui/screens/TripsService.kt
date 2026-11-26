@@ -134,7 +134,7 @@ fun TripsScreen(vm: AppViewModel, ui: UiState, s: AppSettings, wide: Boolean) {
             Text("No trips in this period.", style = Type.small, color = c.muted)
             // Peugeot's server answered "no trips found" (some cars, e.g. newer E-5008, don't share trips with other apps).
             if (vm.tripsNone && ui.trips.isEmpty()) Text(
-                "Peugeot doesn't give trips for this car to other apps, even when the official app shows them. LionFlow now logs the trips itself from the car's reports, whoever drives, so new trips show up here. Older trips can be imported: in the official app export your trips as CSV (or the full .myp file), then use Settings → Import driving data here.",
+                "Peugeot doesn't give trips for this car to other apps, even when the official app shows them. EV Remote now logs the trips itself from the car's reports, whoever drives, so new trips show up here. Older trips can be imported: in the official app export your trips as CSV (or the full .myp file), then use Settings → Import driving data here.",
                 style = Type.tiny, color = c.muted)
         }
         if (list.isNotEmpty()) {

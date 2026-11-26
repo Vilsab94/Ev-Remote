@@ -107,7 +107,7 @@ fun SignInScreen(vm: AppViewModel, ui: UiState, settings: AppSettings) {
             // Demo is only for people with no car yet; when adding another car there is a way back instead.
             if (vm.canCancelSignIn()) SecondaryButton("Back to my cars", Modifier.fillMaxWidth()) { vm.cancelSignIn() }
             else SecondaryButton("Try without an account", Modifier.fillMaxWidth()) { step = 3 }
-            Text("LionFlow is an independent, unofficial app. It is not affiliated with, endorsed or sponsored by Stellantis, Peugeot, Citroën, DS Automobiles, Opel or Vauxhall. The brand names belong to their owners and are only used to say which accounts and cars LionFlow works with.", style = Type.tiny, color = c.muted, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            Text("EV Remote is an independent, unofficial app. It is not affiliated with, endorsed or sponsored by Stellantis, Peugeot, Citroën, DS Automobiles, Opel or Vauxhall. The brand names belong to their owners and are only used to say which accounts and cars EV Remote works with.", style = Type.tiny, color = c.muted, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         } else if (step == 3) {
             // The demo: pick the kind of sample car and the brand before it opens.
             DemoSetup(vm, settings) { step = 1 }
@@ -157,7 +157,7 @@ fun RemoteSetupScreen(vm: AppViewModel, ui: UiState) {
         LionLogo(56.dp)
         Text("Enable remote control", style = Type.title, color = c.text)
         Text(
-            "To lock, unlock, pre-heat and control charging from LionFlow, Peugeot needs to confirm this phone once: we send you an SMS code, and you enter it together with your 4-digit MyPeugeot security code.",
+            "To lock, unlock, pre-heat and control charging from EV Remote, Peugeot needs to confirm this phone once: we send you an SMS code, and you enter it together with your 4-digit MyPeugeot security code.",
             style = Type.body.copy(lineHeight = 21.sp), color = c.text2,
         )
         SubscriptionNotice()
@@ -196,7 +196,7 @@ fun LockScreen(vm: AppViewModel, settings: AppSettings) {
     val bio = settings.bioUnlock && platform.biometricAvailable
 
     fun tryBio() {
-        platform.authenticate("Unlock LionFlow", "Use your fingerprint", onSuccess = { vm.unlock() }, onFail = { })
+        platform.authenticate("Unlock EV Remote", "Use your fingerprint", onSuccess = { vm.unlock() }, onFail = { })
     }
     LaunchedEffect(Unit) { if (bio) tryBio() }
     LaunchedEffect(code) {

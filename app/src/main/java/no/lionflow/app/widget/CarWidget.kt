@@ -240,7 +240,7 @@ class CarWidget : AppWidgetProvider() {
             }
 
         private fun updatedLine(snap: JSONObject?, signedIn: Boolean, short: Boolean = false): String {
-            if (!signedIn) return "Open LionFlow to sign in"
+            if (!signedIn) return "Open EV Remote to sign in"
             if (snap == null) return "Tap ↻ to load your car"
             val now = System.currentTimeMillis()
             val fetched = snap.optLong("fetched", snap.optLong("updated", 0L))
@@ -267,7 +267,7 @@ class WidgetRefreshWorker(ctx: Context, params: WorkerParameters) : CoroutineWor
         }
         val vehicle = app.api.cachedVehicle()
         if (vehicle == null) {
-            WidgetData.setRefresh(ctx, false, "Open LionFlow to finish setup")
+            WidgetData.setRefresh(ctx, false, "Open EV Remote to finish setup")
             return Result.success()
         }
         return coroutineScope {
@@ -295,7 +295,7 @@ class WidgetRefreshWorker(ctx: Context, params: WorkerParameters) : CoroutineWor
                 }
             } catch (e: AuthExpiredException) {
                 explainer.cancel()
-                WidgetData.setRefresh(ctx, false, "Signed out by Peugeot — open LionFlow to sign in again")
+                WidgetData.setRefresh(ctx, false, "Signed out by Peugeot — open EV Remote to sign in again")
             } catch (e: no.lionflow.app.api.ApiException) {
                 explainer.cancel()
                 WidgetData.setRefresh(ctx, false, if (e.noData) "No live status for this car" else "Peugeot didn't answer — tap ↻ to try again")

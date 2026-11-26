@@ -252,27 +252,17 @@ private val manePts: List<Pair<Float, Float>> = MANE.replace("M", "").replace("Z
     x to y
 }
 
-/** The LionFlow lion, drawn natively. */
+/** The EV Remote logo (a yellow lightning bolt), drawn natively. Kept under the old name for upstream merges. */
 @Composable
-fun LionLogo(size: Dp, accent: Color? = null, face: Color? = null) {
+fun LionLogo(size: Dp, accent: Color? = null, @Suppress("UNUSED_PARAMETER") face: Color? = null) {
     val c = LocalLf.current
-    val a = accent ?: c.accentInk
-    val f = face ?: c.bg
-    Canvas(Modifier.size(size).semantics { contentDescription = "LionFlow" }) {
-        val s = this.size.minDimension / 106f
+    val a = accent ?: c.accent
+    Canvas(Modifier.size(size).semantics { contentDescription = "EV Remote" }) {
+        val s = this.size.minDimension / 100f
         scale(s, s, pivot = Offset.Zero) {
-            drawPath(pathOf(manePts), a)
-            drawPath(pathOf(listOf(50f to 22f, 69f to 31f, 74f to 54f, 63f to 75f, 50f to 82f, 37f to 75f, 26f to 54f, 31f to 31f)), f)
-            drawPath(pathOf(listOf(31f to 43f, 46f to 49f, 44f to 52.5f, 34f to 50.5f)), a)
-            drawPath(pathOf(listOf(69f to 43f, 54f to 49f, 56f to 52.5f, 66f to 50.5f)), a)
-            drawLine(a, Offset(47f, 53f), Offset(45f, 61f), 2.2f, StrokeCap.Round)
-            drawLine(a, Offset(53f, 53f), Offset(55f, 61f), 2.2f, StrokeCap.Round)
-            drawPath(pathOf(listOf(43f to 61f, 57f to 61f, 50f to 68f)), a)
-            drawLine(a, Offset(50f, 68f), Offset(50f, 72f), 2.2f, StrokeCap.Round)
-            drawLine(a, Offset(50f, 72f), Offset(42f, 75.5f), 2.2f, StrokeCap.Round)
-            drawLine(a, Offset(50f, 72f), Offset(58f, 75.5f), 2.2f, StrokeCap.Round)
-            drawPath(pathOf(listOf(43.5f to 75f, 46.5f to 74f, 45.3f to 79.5f)), a)
-            drawPath(pathOf(listOf(56.5f to 75f, 53.5f to 74f, 54.7f to 79.5f)), a)
+            val bolt = pathOf(listOf(58f to 8f, 22f to 58f, 46f to 58f, 38f to 92f, 78f to 38f, 53f to 38f))
+            drawPath(bolt, a)
+            drawPath(bolt, Color(0xFF1A1A1A), style = Stroke(width = 3.5f, join = androidx.compose.ui.graphics.StrokeJoin.Round))
         }
     }
 }

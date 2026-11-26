@@ -300,7 +300,7 @@ private fun QuietCarCard(vm: AppViewModel, ui: UiState) {
         Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("The car hasn't sent new data", style = Type.label, color = c.text)
-                Text("Last report ${minutesAgo(at, ui.now)}. LionFlow shows what the car last sent to the carmaker's server. If the official app has no new data either, the car's connection is asleep or the carmaker's service has a problem, and no app can fix that from the phone.", style = Type.tiny, color = c.muted)
+                Text("Last report ${minutesAgo(at, ui.now)}. EV Remote shows what the car last sent to the carmaker's server. If the official app has no new data either, the car's connection is asleep or the carmaker's service has a problem, and no app can fix that from the phone.", style = Type.tiny, color = c.muted)
                 Text("A short drive, or locking and unlocking with the key, usually wakes it up. If it lasts for days, ask your dealer to check the car's connected services.", style = Type.tiny, color = c.muted)
             }
             Text("OK", style = Type.label, color = c.accentInk, modifier = Modifier.clickable { hidden = true }.padding(8.dp))
@@ -318,7 +318,7 @@ private fun UpdateCard(vm: AppViewModel, ui: UiState) {
                 LfIcon(LfIcons.Download, c.accentInk, 22.dp)
                 Column(Modifier.weight(1f)) {
                     Text("Update ${r.name} is ready", style = Type.label, color = c.text)
-                    Text(ui.updateStatus ?: "Signed with LionFlow's key · installs in a few seconds", style = Type.tiny, color = c.muted)
+                    Text(ui.updateStatus ?: "Signed with EV Remote's key · installs in a few seconds", style = Type.tiny, color = c.muted)
                 }
                 val busy = ui.updateStatus?.let { it.startsWith("Downloading") || it.startsWith("Installing") } == true
                 if (busy) no.lionflow.app.ui.Busy()
@@ -604,7 +604,7 @@ private fun HomeMain(vm: AppViewModel, ui: UiState, s: AppSettings, wide: Boolea
                 LfIcon(LfIcons.Download, c.accentInk, 22.dp)
                 Column(Modifier.weight(1f)) {
                     Text("Update ${r.name} is ready", style = Type.label, color = c.text)
-                    Text(ui.updateStatus ?: "Signed with LionFlow's key · installs in a few seconds", style = Type.tiny, color = c.muted)
+                    Text(ui.updateStatus ?: "Signed with EV Remote's key · installs in a few seconds", style = Type.tiny, color = c.muted)
                 }
                 val busy = ui.updateStatus?.let { it.startsWith("Downloading") || it.startsWith("Installing") } == true
                 if (busy) no.lionflow.app.ui.Busy()
