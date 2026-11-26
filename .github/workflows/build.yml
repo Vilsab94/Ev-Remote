@@ -3,7 +3,8 @@ name: Build APK
 on:
   push:
     branches: [ main ]
-    paths-ignore: [ "README.md", "PRIVACY.md", "UPSTREAM.md" ]
+    # Pushes that only change documentation (any .md file) don't make a new app version.
+    paths-ignore: [ "**.md" ]
   workflow_dispatch:
 
 permissions:
