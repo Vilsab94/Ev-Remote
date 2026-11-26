@@ -67,7 +67,8 @@ internal class HomeScreen(ctx: CarContext, ui: CarUi) : DrawnScreen(ctx, ui) {
                 launch { SavedRoutes.changes.collect { redraw() } }
                 launch { while (true) { delay(10_000L); CarHub.refresh(carContext, force = true); CarHub.askCar(carContext) } }   // fresh numbers while it shows
                 launch { CarHub.live.collect { redraw() } }   // battery and range straight from the car
-                launch { while (true) { delay(15_000L); redraw() } }                                  // keeps "reported … ago" right
+                // The speed is read again every 5 seconds (that also keeps "reported … ago" right).
+                launch { while (true) { ui.guard.update(); redraw(); delay(5_000L) } }
             }
         }
     }
@@ -149,6 +150,12 @@ internal class HomeScreen(ctx: CarContext, ui: CarUi) : DrawnScreen(ctx, ui) {
         val range = if (fuelOnly) st.fuelRangeKm ?: st.rangeKm else live.rangeKm ?: st.rangeKm
         val hidden = no.lionflow.app.data.HomeLayout.hidden(s.carHidden)
         val lines = ArrayList<HomeModel.Line>()
+        // How fast the car is going right now, from the car itself (else the phone's GPS). First, so it is never cut off.
+        if ("speed" !in hidden) (ui.guard.speed.value ?: 0f.takeIf { ui.guard.parked.value })?.let { v ->
+            val miles = s.distanceUnit == "mi"
+            val shown = (v * (if (miles) 2.23694f else 3.6f)).roundToInt()
+            lines += HomeModel.Line(R.drawable.ic_car_gauge, "$shown ${if (miles) "mph" else "km/h"}", Tone.TEXT)
+        }
         val doors = HomeModel.Line(R.drawable.ic_car_lock, CarHub.doorsLine(st), if (st.openDoors.isNotEmpty() || st.locked == false) Tone.WARN else Tone.TEXT)
         val showDoors = "doors" !in hidden
         val showCharging = "charging" !in hidden

@@ -42,6 +42,7 @@ object HomeLayout {
         Item("saved", "Saved routes"),
         Item("trips", "Previous trips"),
         Item("info", "Car Info"),
+        Item("speed", "Speed", "A line next to the battery"),
         Item("doors", "Doors and lock", "A line next to the battery"),
         Item("charging", "Charging state", "A line next to the battery", needs = "battery"),
         Item("outside", "Outside temperature", "A line next to the battery"),

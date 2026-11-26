@@ -470,21 +470,28 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     // ---------------- demo ----------------
 
     /** Try the app without an account: a sample car with made-up data. */
-    fun startDemo() {
+    /**
+     * [kind] is the sample car to show: "electric", "hybrid" (plug-in) or "fuel" (petrol or diesel). [brand] is the
+     * brand id whose names the app uses while the demo runs (null keeps the one already picked).
+     */
+    fun startDemo(kind: String = "electric", brand: String? = null) {
         val app = getApplication<Application>()
         no.lionflow.app.demo.Demo.setOn(app, true)
+        no.lionflow.app.demo.Demo.choose(app, kind)
         no.lionflow.app.demo.Demo.reset()
         settings.demoPrevName = settings.value.carName
-        settings.update { it.copy(carName = "Demo car") }
+        settings.update { it.copy(carName = "Demo car", brand = brand ?: it.brand) }
         showDemo()
     }
 
     private fun showDemo() {
         val d = no.lionflow.app.demo.Demo
+        d.load(getApplication())
         no.lionflow.app.model.ChargeLog.enterDemo(getApplication(), d.VIN, d.sessions(), d.places())
         val now = System.currentTimeMillis()
         java.io.File(getApplication<Application>().cacheDir, "demo_photo.jpg").delete()
-        _ui.update { it.copy(phase = Phase.Ready, photoPath = null, vehicle = d.vehicle, vehicles = listOf(d.vehicle), status = d.status(), trips = d.trips(), lastRefresh = now, now = now) }
+        val car = d.vehicle
+        _ui.update { it.copy(phase = Phase.Ready, photoPath = null, vehicle = car, vehicles = listOf(car), status = d.status(), trips = d.trips(), lastRefresh = now, now = now) }
         startTicker()
         loadLocationAndWeather()
     }
