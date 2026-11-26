@@ -143,7 +143,9 @@ internal fun ParkedCard(vm: AppViewModel, ui: UiState) {
             Column(Modifier.weight(1f)) {
                 Text(when { st.moving -> "Driving"; where == null -> "Parked"; else -> "Parked at $where" }, style = Type.stat.copy(fontSize = 20.sp), color = c.text, maxLines = 2)
                 Text(
-                    if (st.heading != null && !st.moving) "Facing ${compassWord(st.heading)}" else if (st.moving) "Where it last reported" else "Where the car last reported",
+                    (if (st.heading != null && !st.moving) "Facing ${compassWord(st.heading)}" else if (st.moving) "Where it last reported" else "Where the car last reported") +
+                        // EV Remote: how old the position is (lastPosition's own time, else the status time)
+                        ((st.positionAtMillis ?: st.updatedAtMillis)?.let { " · updated " + no.lionflow.app.ui.minutesAgo(it, System.currentTimeMillis()) } ?: ""),
                     style = Type.small, color = c.muted,
                 )
             }
@@ -301,7 +303,15 @@ internal fun CarDataSheet(vm: AppViewModel, ui: UiState, s: AppSettings, onDismi
     val lang = L10n.lang
     val plain = remember(st, s, lang) { st?.let { plainRows(it, s) }.orEmpty() }
     val all = remember(st) { st?.let { CarData.flatten(it.raw) }.orEmpty() }
-    val raw = remember(st) { st?.let { CarData.pretty(it.raw) }.orEmpty() }
+    // EV Remote: the status as the server sent it, then the separate lastPosition request's raw answer.
+    val raw = remember(st) {
+        st?.let {
+            val key = no.lionflow.app.model.VehicleStatus.LAST_POSITION_KEY
+            val status = try { org.json.JSONObject(it.raw.toString()).apply { remove(key) } } catch (_: Exception) { it.raw }
+            CarData.pretty(status) + "\n\n// lastPosition request (GET …/vehicles/{id}/lastPosition):\n" +
+                (it.raw.optJSONObject(key)?.let { lp -> CarData.pretty(lp) } ?: "not asked yet")
+        }.orEmpty()
+    }
 
     @Composable
     fun rows(list: List<Pair<String, String>>, translateLabel: Boolean) {

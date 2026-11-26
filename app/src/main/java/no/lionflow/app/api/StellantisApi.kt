@@ -416,7 +416,51 @@ class StellantisApi(private val ctx: Context, private val secure: SecureStore, p
         return trips.map { Trip.parse(it, mildHybrid) }
     }
 
-    suspend fun status(v: Vehicle): JSONObject = authed { token ->
+    /** EV Remote: where lines for the command & error log go (set by the app to RemoteControl.addLog). */
+    @Volatile var log: ((String) -> Unit)? = null
+    @Volatile private var lastPosLog = ""
+    @Volatile private var lastPosLogAt = 0L
+
+    /**
+     * EV Remote (PLAN.md item 3): some cars (Mokka-e, privacy state None) send no lastPosition in the status, while
+     * MyOpel still shows the car. The position is asked for separately and its raw answer is put into the status
+     * under [VehicleStatus.LAST_POSITION_KEY]; VehicleStatus uses it when the status has no position of its own.
+     * Never throws: without it the app works as before. The log gets the HTTP result only, never coordinates.
+     */
+    private suspend fun addLastPosition(v: Vehicle, status: JSONObject) {
+        val line = try {
+            // The token the status request just used; no renewal on 401 here (a refused position must not touch the sign-in).
+            val token = accessToken()
+            val url = "$API/connectedcar/v4/user/vehicles/${v.id}/lastPosition?${clientQuery()}"
+            val body = Http.text(carHeaders(Request.Builder().url(url), token).get().build())
+            val parsed = try { JSONObject(body) } catch (_: Exception) { null }
+            status.put(VehicleStatus.LAST_POSITION_KEY, parsed ?: JSONObject().put("body", body.take(2000)))
+            val hasPos = parsed != null && VehicleStatus.positionFeature(parsed) != null
+            "lastPosition: HTTP 200" + if (hasPos) ", position received" else ", no position in the answer"
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: ApiException) {
+            status.put(VehicleStatus.LAST_POSITION_KEY, JSONObject().put("error", "HTTP ${e.code}"))
+            "lastPosition: HTTP ${e.code}"
+        } catch (e: Exception) {
+            status.put(VehicleStatus.LAST_POSITION_KEY, JSONObject().put("error", e.javaClass.simpleName))
+            "lastPosition: failed (${e.javaClass.simpleName})"
+        }
+        // Status is read often (app, widget, background checks): log changes, and the same result at most every 30 min.
+        val now = System.currentTimeMillis()
+        if (line != lastPosLog || now - lastPosLogAt > 30 * 60_000L) {
+            lastPosLog = line; lastPosLogAt = now
+            try { log?.invoke(line) } catch (_: Exception) { }
+        }
+    }
+
+    suspend fun status(v: Vehicle): JSONObject {
+        val s = statusOnly(v)
+        addLastPosition(v, s)
+        return s
+    }
+
+    private suspend fun statusOnly(v: Vehicle): JSONObject = authed { token ->
         val url = "$API/connectedcar/v4/user/vehicles/${v.id}/status?${clientQuery()}"
         Http.json(carHeaders(Request.Builder().url(url), token).get().build()) as? JSONObject
             ?: throw ApiException(0, "Empty status response")

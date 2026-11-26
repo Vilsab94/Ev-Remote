@@ -26,6 +26,15 @@ customised for an Opel Mokka-e. All credit for the original app goes to its auth
   `ChargePower.tripFactor()` = usable / server capacity (remembered as `srvCap`). `ChargeLog` always uses
   Δ% × usable (also re-computed for saved sessions on load); `EstimatedHealth` is hidden. Settings shows
   "46 kWh × SoH 93 % = 42,8 kWh usable" (`batteryLine()` in SettingsScreen.kt).
+- Car position (PLAN.md item 3): `StellantisApi.status()` also calls
+  `GET /connectedcar/v4/user/vehicles/{id}/lastPosition` (same headers/client_id) via `addLastPosition()` and puts
+  the raw answer (or `{"error": "HTTP 404"}`) into the status JSON as `evRemoteLastPosition`
+  (`VehicleStatus.LAST_POSITION_KEY`). It never throws. `VehicleStatus.parse()` uses the status's own `lastPosition`
+  first, else that answer (`positionFeature()`: Feature or FeatureCollection, [lon, lat, alt]) for lat/lon/heading,
+  and the new `positionAtMillis` (properties.updatedAt). Parked card (HomeCards.kt) and the map's car panel
+  (MapScreen.kt) show "· updated 2 h ago". "All car data" raw text lists the lastPosition answer separately.
+  The command & error log gets "lastPosition: HTTP <code>" without coordinates (`StellantisApi.log`, set in
+  LionFlowApp.kt; logged when the result changes, else at most every 30 min).
 - Logo: lightning bolt (#F5C400, outline #1A1A1A) on white – `ic_lion_foreground.xml`,
   `ic_lion_mono.xml`, `ic_notification.xml`, `ic_w_lion.xml`, `LionLogo()` in Components.kt
   (file/function names kept). `launcher_bg` = white.

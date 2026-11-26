@@ -53,6 +53,7 @@ data class VehicleStatus(
     val fogLightsOn: List<String> = emptyList(),    // "Front", "Rear" … for each fog light that is on
     val alarmOn: Boolean? = null,
     val fuelTotalRaw: Double? = null,               // the car's lifetime fuel counter, in its own (undocumented) unit
+    val positionAtMillis: Long? = null,             // EV Remote: when the position was taken (lastPosition properties.updatedAt)
 ) {
     val isCharging: Boolean get() = chargingStatus == "InProgress"
     /** Privacy mode in the car: it blocks remote commands and can hide the position. */
@@ -62,6 +63,22 @@ data class VehicleStatus(
     fun programsJson(): JSONObject = programsJsonOf(programs)
 
     companion object {
+        /** EV Remote: the raw answer of the separate lastPosition request, put into the status JSON (see StellantisApi). */
+        const val LAST_POSITION_KEY = "evRemoteLastPosition"
+
+        /**
+         * EV Remote: a GeoJSON Feature with usable coordinates ([lon, lat, alt]), from a Feature or the first
+         * feature of a FeatureCollection; null when there is none (or it is 0,0).
+         */
+        fun positionFeature(o: JSONObject?): JSONObject? {
+            val f = o?.optJSONArray("features")?.optJSONObject(0) ?: o ?: return null
+            val c = f.obj("geometry")?.optJSONArray("coordinates") ?: return null
+            if (c.length() < 2) return null
+            val lon = c.optDouble(0); val lat = c.optDouble(1)
+            if (lat.isNaN() || lon.isNaN() || (lat == 0.0 && lon == 0.0) || lat !in -90.0..90.0 || lon !in -180.0..180.0) return null
+            return f
+        }
+
         /** The car's 4 schedule slots. An empty slot is sent as 34:07, off (as MyPeugeot does). */
         fun programsJsonOf(programs: List<Program>): JSONObject {
             val out = JSONObject()
@@ -115,7 +132,9 @@ data class VehicleStatus(
             val lockedStates = doors?.optJSONArray("lockedStates")?.let { a -> (0 until a.length()).map { a.optString(it) } }.orEmpty()
             val openings = doors?.optJSONArray("opening")?.objects().orEmpty()
                 .filter { it.optString("state") == "Open" }.map { it.optString("identifier") }
-            val coords = j.obj("lastPosition", "geometry")?.optJSONArray("coordinates")
+            // EV Remote: the status's own lastPosition, else the answer of the separate lastPosition request.
+            val pos = positionFeature(j.optJSONObject("lastPosition")) ?: positionFeature(j.optJSONObject(LAST_POSITION_KEY))
+            val coords = pos?.obj("geometry")?.optJSONArray("coordinates")
             val ac = j.obj("preconditioning", "airConditioning")
             val programs = ac?.optJSONArray("programs")?.objects().orEmpty().mapNotNull { p ->
                 val start = parsePt(p.optString("start")) ?: return@mapNotNull null
@@ -167,7 +186,8 @@ data class VehicleStatus(
                 residualKwh = res,
                 capacityKwh = cap,
                 energyAtMillis = parseIso(electric?.optString("updatedAt")),
-                heading = j.obj("lastPosition", "properties")?.num("heading")?.takeIf { it in 0.0..360.0 },
+                heading = pos?.obj("properties")?.num("heading")?.takeIf { it in 0.0..360.0 },
+                positionAtMillis = pos?.obj("properties")?.str("updatedAt")?.let { parseIso(it) },
                 privacyState = j.optJSONObject("privacy")?.str("state"),
                 fogLightsOn = j.optJSONObject("lightingSystem")?.optJSONArray("fog")?.objects().orEmpty()
                     .filter { it.optString("status") == "On" }

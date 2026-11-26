@@ -321,7 +321,9 @@ fun MapScreen(vm: AppViewModel, ui: UiState, s: AppSettings) {
                     Box(Modifier.size(40.dp).clip(RoundedCornerShape(14.dp)).background(c.raised), contentAlignment = Alignment.Center) { LfIcon(LfIcons.Car, c.accentInk, 20.dp) }
                     Column(Modifier.weight(1f)) {
                         Text("Your car", style = Type.label, color = c.text)
-                        Text(if (carLat != null) (if (moving) "Driving" else "Parked") + " · tap a charger for details" else "Position not available yet", style = Type.small, color = c.muted)
+                        // EV Remote: with how old the position is
+                        val posAge = (st?.positionAtMillis ?: st?.updatedAtMillis)?.let { " · updated " + no.lionflow.app.ui.minutesAgo(it, System.currentTimeMillis()) } ?: ""
+                        Text(if (carLat != null) (if (moving) "Driving" else "Parked") + posAge + " · tap a charger for details" else "Position not available yet", style = Type.small, color = c.muted)
                     }
                     if (carLat != null && carLon != null) Text("Go", style = Type.label, color = c.accentInk, modifier = Modifier.clickable {
                         map?.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(carLat, carLon), 15.0))

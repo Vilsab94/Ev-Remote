@@ -33,6 +33,7 @@ open class LionFlowApp : Application() {
         secure.profile = settings.activeAccount
         api = StellantisApi(this, secure, settings)
         remote = RemoteControl(api, secure)
+        api.log = { remote.addLog(it) }   // EV Remote: lastPosition HTTP result in the command & error log
         no.lionflow.app.model.ChargePower.init(this, settings, api.cachedVehicle()?.vin)
         no.lionflow.app.model.ChargeLog.init(this, api.cachedVehicle()?.vin)
 
