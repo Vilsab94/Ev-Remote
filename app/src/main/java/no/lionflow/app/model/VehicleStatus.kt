@@ -258,6 +258,8 @@ data class Trip(
     /** EV Remote: where the trip ended, when the server sends it (used as the car's position when the status has none). */
     val endLat: Double? = null,
     val endLon: Double? = null,
+    /** EV Remote: the server's link to the trip's route points (_links.wayPoints.href), when it gives one. */
+    val wayPointsHref: String? = null,
 ) {
     companion object {
         /** EV Remote: names a trip's end point might have; the server's own name isn't documented. */
@@ -317,6 +319,7 @@ data class Trip(
                 fuelEndPct = fuelLevel(t, "endEnergies"),
                 endLat = end?.first,
                 endLon = end?.second,
+                wayPointsHref = t.obj("_links", "wayPoints")?.str("href")?.takeIf { it.isNotBlank() },
             )
         }
     }

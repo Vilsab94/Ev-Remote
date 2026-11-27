@@ -236,8 +236,16 @@ private fun TripDetail(vm: AppViewModel, trip: no.lionflow.app.model.Trip?, rout
                 Box(Modifier.size(36.dp).clip(CircleShape).background(c.raised).clickable(onClick = onDismiss), contentAlignment = Alignment.Center) { LfIcon(LfIcons.Close, c.text2, 18.dp) }
             }
 
+            // EV Remote: without a route from the phone, the car's own way points for this trip (saved on the phone).
+            var carPts by remember(trip?.id) { mutableStateOf<List<Triple<Double, Double, Long>>>(emptyList()) }
+            if (pts.size < 2 && trip != null) LaunchedEffect(trip.id) { carPts = vm.tripWayPoints(trip) }
+
             // Map, or a note about route tracking
             if (pts.size >= 2) RouteMap(pts)
+            else if (carPts.size >= 2) {
+                RouteMap(carPts)
+                Text("Route from the car's way points", style = Type.tiny, color = c.muted)
+            }
             else Row(Modifier.fillMaxWidth().clip(shape).background(c.card).border(1.dp, c.line, shape).padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 LfIcon(LfIcons.Map, c.muted, 20.dp)

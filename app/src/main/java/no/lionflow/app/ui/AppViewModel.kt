@@ -192,25 +192,69 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     /**
      * EV Remote (PLAN.md item 3): when the car sends no position (no lastPosition in the status, and the separate
-     * request answers 404), the car is shown where the last trip ended (if the trips have end coordinates), else at
-     * the last point the phone recorded (route tracking stops when the phone leaves the car's Bluetooth).
+     * request answers 404), the car is shown where the last trip ended: the last way point of the newest trip (or a
+     * trip's end coordinates), at the trip's stoppedAt time. When the phone's last recorded point (route tracking
+     * stops when the phone leaves the car's Bluetooth) is newer, that one is used.
      */
     private var routeEndCache: Pair<String, Triple<Double, Double, Long>?>? = null
+    /** Last way point of the newest trip that has way points: (trip id, lat, lon). */
+    @Volatile private var wayPointEnd: Triple<String, Double, Double>? = null
     private fun withFallbackPosition(st: VehicleStatus?, trips: List<Trip>, routes: List<no.lionflow.app.route.Route>): VehicleStatus? {
         if (st == null || isDemo) return st
         if (st.lat != null && st.positionSource == null) return st   // the car's own position
-        val trip = trips.filter { it.endLat != null && it.endLon != null }.maxByOrNull { it.endMillis ?: it.startMillis ?: 0L }
-        if (trip != null) return st.copy(lat = trip.endLat, lon = trip.endLon, heading = null,
-            positionAtMillis = trip.endMillis ?: trip.startMillis, positionSource = "trip")
+        // From the trips: way points of the newest trip, else trip end coordinates.
+        val wp = wayPointEnd?.let { e -> trips.firstOrNull { it.id == e.first }?.let { t -> Triple(e.second, e.third, t.endMillis ?: t.startMillis ?: 0L) } }
+        val ends = trips.filter { it.endLat != null && it.endLon != null }.maxByOrNull { it.endMillis ?: it.startMillis ?: 0L }
+            ?.let { t -> Triple(t.endLat!!, t.endLon!!, t.endMillis ?: t.startMillis ?: 0L) }
+        val fromTrip = listOfNotNull(wp, ends).maxByOrNull { it.third }
         val route = routes.maxByOrNull { it.endMillis }
-        val end = route?.let { r ->
+        val fromPhone = route?.let { r ->
             val cached = routeEndCache
             if (cached != null && cached.first == r.file.path) cached.second
             else no.lionflow.app.route.Routes.points(r.file).lastOrNull().also { routeEndCache = r.file.path to it }
         }
-        if (end != null) return st.copy(lat = end.first, lon = end.second, heading = null, positionAtMillis = end.third, positionSource = "phone")
+        val usePhone = fromPhone != null && (fromTrip == null || fromPhone.third > fromTrip.third)
+        if (usePhone) return st.copy(lat = fromPhone!!.first, lon = fromPhone.second, heading = null, positionAtMillis = fromPhone.third, positionSource = "phone")
+        if (fromTrip != null) return st.copy(lat = fromTrip.first, lon = fromTrip.second, heading = null,
+            positionAtMillis = fromTrip.third.takeIf { it > 0 }, positionSource = "trip")
         return if (st.positionSource != null) st.copy(lat = null, lon = null, positionAtMillis = null, positionSource = null) else st
     }
+
+    /**
+     * EV Remote: a trip's way points – saved on the phone, else asked of the server once per app start (when the
+     * trip has a wayPoints link). Logs "wayPoints: HTTP <code>, <N> points" (never coordinates).
+     */
+    private val wayPointsTried = java.util.Collections.synchronizedSet(HashSet<String>())
+    suspend fun tripWayPoints(t: Trip): List<Triple<Double, Double, Long>> {
+        val ctx = getApplication<Application>()
+        no.lionflow.app.model.WayPoints.saved(ctx, t.id)?.let { return it }
+        val href = t.wayPointsHref ?: return emptyList()
+        if (isDemo || !wayPointsTried.add(t.id)) return emptyList()
+        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            var answer: Any? = null
+            val result = try {
+                answer = api.wayPoints(href); "HTTP 200"
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e
+            } catch (e: no.lionflow.app.api.ApiException) { "HTTP ${e.code}"
+            } catch (e: Exception) { "failed (${e.javaClass.simpleName})" }
+            val pts = no.lionflow.app.model.WayPoints.parse(answer)
+            remote.addLog("wayPoints: $result, ${pts.size} points")
+            no.lionflow.app.model.WayPoints.saveDebug(ctx, t.id, result, answer)
+            if (pts.isNotEmpty()) no.lionflow.app.model.WayPoints.save(ctx, t.id, pts)
+            pts
+        }
+    }
+
+    /** EV Remote: way points of the newest server trip → car position (when the car sends none). */
+    private fun loadNewestWayPoints(trips: List<Trip>) = viewModelScope.launch {
+        val newest = trips.filter { it.wayPointsHref != null }.maxByOrNull { it.endMillis ?: it.startMillis ?: 0L } ?: return@launch
+        val last = tripWayPoints(newest).lastOrNull() ?: return@launch
+        wayPointEnd = Triple(newest.id, last.first, last.second)
+        applyFallbackPosition()
+    }
+
+    /** EV Remote: for "All car data": the last wayPoints answer (HTTP result, first and last point as sent). */
+    fun wayPointsDebug(): String? = no.lionflow.app.model.WayPoints.debug(getApplication())
     private fun applyFallbackPosition() = _ui.update { it.copy(status = withFallbackPosition(it.status, it.trips, it.routes)) }
 
     /** Where a trip started and ended, from the route recorded on the phone; null when it wasn't recorded. */
@@ -1200,6 +1244,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 val merged = withCarTrips((all + imported).distinctBy { it.id }).sortedByDescending { it.startMillis ?: 0L }
                 _ui.update { it.copy(trips = merged, tripsLoading = false) }
                 applyFallbackPosition()
+                loadNewestWayPoints(all)   // EV Remote: car position from the newest trip's way points
                 autoTagNow()
             } catch (e: Exception) {
                 _ui.update { it.copy(tripsLoading = false, trips = withCarTrips(loadImportedTrips()).sortedByDescending { t -> t.startMillis ?: 0L }) }

@@ -337,7 +337,8 @@ internal fun CarDataSheet(vm: AppViewModel, ui: UiState, s: AppSettings, onDismi
             val key = no.lionflow.app.model.VehicleStatus.LAST_POSITION_KEY
             val status = try { org.json.JSONObject(it.raw.toString()).apply { remove(key) } } catch (_: Exception) { it.raw }
             CarData.pretty(status) + "\n\n// lastPosition request (GET …/vehicles/{id}/lastPosition):\n" +
-                (it.raw.optJSONObject(key)?.let { lp -> CarData.pretty(lp) } ?: "not asked yet")
+                (it.raw.optJSONObject(key)?.let { lp -> CarData.pretty(lp) } ?: "not asked yet") +
+                "\n\n// wayPoints of the newest trip (GET trip _links.wayPoints.href):\n" + (vm.wayPointsDebug() ?: "not asked yet")
         }.orEmpty()
     }
 

@@ -508,6 +508,17 @@ class StellantisApi(private val ctx: Context, private val secure: SecureStore, p
         return null
     }
 
+    /**
+     * EV Remote (PLAN.md item 3): a trip's route points, from the trip's _links.wayPoints.href, with the same
+     * headers as the trips request. The sign-in token only ever goes to the brand's API host. Returns the raw answer.
+     */
+    suspend fun wayPoints(href: String): Any? = authed { token ->
+        val abs = if (href.startsWith("http")) href else API + (if (href.startsWith("/")) "" else "/") + href
+        if (!abs.startsWith("$API/")) throw ApiException(0, "wayPoints link to another host")
+        val url = if (abs.contains("client_id=")) abs else abs + (if (abs.contains('?')) "&" else "?") + clientQuery()
+        Http.json(carHeaders(Request.Builder().url(url), token).get().build())
+    }
+
     /** One page of trips since the given ISO timestamp (and until [untilIso]), or the page at [nextHref] (the server's own "next" link). */
     suspend fun trips(v: Vehicle, sinceIso: String?, untilIso: String? = null, nextHref: String? = null): JSONObject = authed { token ->
         var url = if (nextHref != null && nextHref.startsWith(API)) {
