@@ -130,7 +130,7 @@ private fun compassWord(deg: Double): String =
 internal fun healthText(st: VehicleStatus?): String? {
     val pct = st?.batteryHealthPct ?: return null
     val at = no.lionflow.app.model.ChargePower.sohAtMillis()
-    return "${pct.roundToInt()} %" + (at?.let {
+    return "${pct.roundToInt()} %" + (no.lionflow.app.model.ChargePower.sohSource()?.let { " · $it" } ?: "") + (at?.let {
         " · received " + java.text.DateFormat.getDateInstance(java.text.DateFormat.SHORT, L10n.locale).format(java.util.Date(it))
     } ?: "")
 }

@@ -74,9 +74,18 @@ data class VehicleStatus(
             j.optJSONArray("energy")?.objects().orEmpty()
                 .mapNotNull { it.obj("battery", "health") ?: it.obj("extension", "electric", "battery", "health") }
 
-        /** EV Remote: SoH (%) = the first health.capacity found; never "resistance" (LionFlow falls back to it). */
-        fun sohOf(j: JSONObject): Double? =
-            healthObjects(j).firstNotNullOfOrNull { it.num("capacity")?.takeIf { v -> v > 0 && v <= 110 } }
+        /**
+         * EV Remote: SoH (%) and where it came from: health.capacity, else health.resistance (the Mokka-e only sends
+         * resistance = 93, which an OBD reader confirmed as 93 % SoH). Both energies[] and energy[] are looked at.
+         */
+        fun sohSourceOf(j: JSONObject): Pair<Double, String>? {
+            val h = healthObjects(j)
+            for (field in listOf("capacity", "resistance"))
+                h.firstNotNullOfOrNull { it.num(field)?.takeIf { v -> v > 0 && v <= 110 } }?.let { return it to field }
+            return null
+        }
+
+        fun sohOf(j: JSONObject): Double? = sohSourceOf(j)?.first
 
         /** EV Remote: one log line with both health values as the server sent them. */
         fun healthLog(j: JSONObject): String {
@@ -190,7 +199,7 @@ data class VehicleStatus(
                 remainingMinutes = remaining,
                 nextDelayedHour = next?.first,
                 nextDelayedMinute = next?.second,
-                // EV Remote: SoH only from health.capacity (two places, see sohOf); "resistance" is not a state of health.
+                // EV Remote: SoH from health.capacity, else health.resistance (two places, see sohSourceOf).
                 batteryHealthPct = if (fuelOnly) null else sohOf(j),
                 odometerKm = j.optJSONObject("odometer")?.num("mileage"),
                 locked = if (lockedStates.isEmpty()) null else lockedStates.any { it.contains("Locked") && !it.contains("Unlocked") },

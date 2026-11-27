@@ -71,6 +71,11 @@ object ChargePower {
         p.getLong(k("sohAt"), 0L).takeIf { it > 0 } ?: p.getLong("sohAt_any", 0L).takeIf { it > 0 }
     }
 
+    /** EV Remote: which health field the saved SoH came from ("capacity" or "resistance"), or null if never. */
+    fun sohSource(): String? = prefs?.let { p ->
+        p.getString(k("sohSrc"), null)?.takeIf { it.isNotEmpty() } ?: p.getString("sohSrc_any", null)?.takeIf { it.isNotEmpty() }
+    }
+
     /** EV Remote: usable capacity now = new battery × SoH (100 % until the car has sent one). */
     fun userKwh(): Double? = newKwh()?.let { it * (sohPct() ?: 100.0) / 100.0 }
 
@@ -87,11 +92,12 @@ object ChargePower {
         if (st.energyType != "Electric") return st
         val p = prefs
         // Only a SoH that is really in this report is saved (with the report's time), not one filled in from before.
-        VehicleStatus.sohOf(st.raw)?.let { soh ->
+        VehicleStatus.sohSourceOf(st.raw)?.let { (soh, src) ->
             val at = st.updatedAtMillis ?: System.currentTimeMillis()
-            if (p != null && (p.getFloat(k("soh"), 0f) != soh.toFloat() || p.getLong(k("sohAt"), 0L) < at))
+            if (p != null && (p.getFloat(k("soh"), 0f) != soh.toFloat() || p.getLong(k("sohAt"), 0L) < at || p.getString(k("sohSrc"), "") != src))
                 p.edit().putFloat(k("soh"), soh.toFloat()).putFloat("soh_any", soh.toFloat())
-                    .putLong(k("sohAt"), at).putLong("sohAt_any", at).apply()
+                    .putLong(k("sohAt"), at).putLong("sohAt_any", at)
+                    .putString(k("sohSrc"), src).putString("sohSrc_any", src).apply()
         }
         st.capacityKwh?.let { cap -> if (p != null && p.getFloat(k("srvCap"), 0f) != cap.toFloat()) p.edit().putFloat(k("srvCap"), cap.toFloat()).apply() }
         val shown = st.copy(batteryHealthPct = st.batteryHealthPct ?: sohPct())
