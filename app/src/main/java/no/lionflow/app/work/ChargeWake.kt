@@ -51,7 +51,8 @@ object ChargeWake {
                 at(app, now + (if (near) 5 else 15) * 60_000L, if (near) "charging, near the limit" else "charging")
             }
             st.chargingStatus == "Finished" -> stop(app, "charging finished")
-            st.nextDelayedHour != null -> at(app, nextTime(st.nextDelayedHour, st.nextDelayedMinute ?: 0) + 3 * 60_000L, "scheduled start")
+            // After "Turn off" the car still reports a time: ChargePower.scheduledStart leaves it out (upstream 4eb9770).
+            no.lionflow.app.model.ChargePower.scheduledStart(st) != null -> no.lionflow.app.model.ChargePower.scheduledStart(st)!!.let { (h, m) -> at(app, nextTime(h, m) + 3 * 60_000L, "scheduled start") }
             else -> stop(app, "not charging (${st.chargingStatus ?: "?"})")
         }
     }
