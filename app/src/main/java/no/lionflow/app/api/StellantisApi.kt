@@ -467,6 +467,8 @@ class StellantisApi(private val ctx: Context, private val secure: SecureStore, p
 
     suspend fun status(v: Vehicle): JSONObject {
         val s = statusOnly(v)
+        // EV Remote: both battery health values as sent, every time (SoH is taken from "capacity" only).
+        try { log?.invoke(VehicleStatus.healthLog(s)) } catch (_: Exception) { }
         addLastPosition(v, s)
         return s
     }

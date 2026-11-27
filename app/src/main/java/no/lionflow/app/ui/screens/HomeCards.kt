@@ -126,6 +126,15 @@ internal fun WarningsCard(ui: UiState) {
 private fun compassWord(deg: Double): String =
     listOf("north", "north-east", "east", "south-east", "south", "south-west", "west", "north-west")[(((deg % 360 + 360) % 360 + 22.5) / 45).toInt() % 8]
 
+/** EV Remote: "93 % · received 27.11.2026" – SoH (health.capacity) and when the car last sent it; null if not known. */
+internal fun healthText(st: VehicleStatus?): String? {
+    val pct = st?.batteryHealthPct ?: return null
+    val at = no.lionflow.app.model.ChargePower.sohAtMillis()
+    return "${pct.roundToInt()} %" + (at?.let {
+        " · received " + java.text.DateFormat.getDateInstance(java.text.DateFormat.SHORT, L10n.locale).format(java.util.Date(it))
+    } ?: "")
+}
+
 /**
  * EV Remote: how old the car's position is and where it came from: " · updated 2 h ago" (from the car),
  * " · from the last trip, 2 h ago" or " · from the phone's GPS, 2 h ago". Empty when the time isn't known.
@@ -281,7 +290,7 @@ private fun plainRows(st: VehicleStatus, s: AppSettings): List<Pair<String, List
         "Battery" to st.batteryPct?.takeIf { !fuelOnly }?.let { "${it.roundToInt()} %" },
         "Range" to st.rangeKm?.takeIf { !fuelOnly }?.let { fmtDistance(it, s) },
         "Energy in the battery" to (if (st.residualKwh != null && st.capacityKwh != null) "${one(st.residualKwh)} / ${one(st.capacityKwh)} kWh" else st.capacityKwh?.let { "${one(it)} kWh" }),
-        "Battery health" to st.batteryHealthPct?.takeIf { !fuelOnly }?.let { "${it.roundToInt()} %" },
+        "Battery health" to (if (fuelOnly) null else healthText(st)),
         "Charging" to (if (fuelOnly) null else tr(when { st.isCharging -> "Charging"; st.chargingStatus == "Finished" -> "Charging complete"; st.plugged -> "Plugged in"; else -> "Not plugged in" })),
         "Fuel" to (st.fuelPct ?: st.batteryPct.takeIf { fuelOnly })?.let { "${it.roundToInt()} %" },
         "Fuel range" to (st.fuelRangeKm ?: st.rangeKm.takeIf { fuelOnly })?.let { fmtDistance(it, s) },

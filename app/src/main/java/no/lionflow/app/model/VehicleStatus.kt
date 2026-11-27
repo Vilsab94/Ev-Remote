@@ -64,6 +64,27 @@ data class VehicleStatus(
     fun programsJson(): JSONObject = programsJsonOf(programs)
 
     companion object {
+        /**
+         * EV Remote: the battery's "health" objects, in the order they are used: energies[] (type Electric) →
+         * extension.electric.battery.health (where LionFlow reads it), else energy[] → battery.health.
+         */
+        fun healthObjects(j: JSONObject): List<JSONObject> =
+            j.optJSONArray("energies")?.objects().orEmpty().filter { it.optString("type") == "Electric" }
+                .mapNotNull { it.obj("extension", "electric", "battery", "health") } +
+            j.optJSONArray("energy")?.objects().orEmpty()
+                .mapNotNull { it.obj("battery", "health") ?: it.obj("extension", "electric", "battery", "health") }
+
+        /** EV Remote: SoH (%) = the first health.capacity found; never "resistance" (LionFlow falls back to it). */
+        fun sohOf(j: JSONObject): Double? =
+            healthObjects(j).firstNotNullOfOrNull { it.num("capacity")?.takeIf { v -> v > 0 && v <= 110 } }
+
+        /** EV Remote: one log line with both health values as the server sent them. */
+        fun healthLog(j: JSONObject): String {
+            val h = healthObjects(j)
+            if (h.isEmpty()) return "health: not in the status"
+            return h.joinToString(" | ") { "health: capacity=${it.opt("capacity")}, resistance=${it.opt("resistance")}" }
+        }
+
         /** EV Remote: the raw answer of the separate lastPosition request, put into the status JSON (see StellantisApi). */
         const val LAST_POSITION_KEY = "evRemoteLastPosition"
 
@@ -169,8 +190,8 @@ data class VehicleStatus(
                 remainingMinutes = remaining,
                 nextDelayedHour = next?.first,
                 nextDelayedMinute = next?.second,
-                // EV Remote: SoH only from health.capacity; "resistance" is not a state of health.
-                batteryHealthPct = health?.num("capacity")?.takeIf { it > 0 && it <= 110 },
+                // EV Remote: SoH only from health.capacity (two places, see sohOf); "resistance" is not a state of health.
+                batteryHealthPct = if (fuelOnly) null else sohOf(j),
                 odometerKm = j.optJSONObject("odometer")?.num("mileage"),
                 locked = if (lockedStates.isEmpty()) null else lockedStates.any { it.contains("Locked") && !it.contains("Unlocked") },
                 openDoors = openings,

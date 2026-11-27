@@ -93,7 +93,7 @@ fun ChargingScreen(vm: AppViewModel, ui: UiState, s: AppSettings, wide: Boolean)
                 confirm(if (st?.plugged == true) "Turn off scheduled start? Charging starts now." else "Turn off scheduled start?") { vm.clearScheduledStart() }
             }
             Divider()
-            DetailRow("Battery health", st?.batteryHealthPct?.let { "${it.toInt()} %" } ?: "—")
+            DetailRow("Battery health", healthText(st) ?: "—")
             EstimatedHealth(s, st)
         }
         if (vm.remoteReady) PrimaryButton(

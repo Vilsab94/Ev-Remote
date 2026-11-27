@@ -560,12 +560,12 @@ private fun FeedbackDialog(vm: AppViewModel, fieldColors: androidx.compose.mater
 /** EV Remote: 46.0 → "46", 42.5 → "42.5" (for the input field). */
 private fun kwhText(v: Double): String = if (v % 1.0 == 0.0) v.toInt().toString() else String.format(java.util.Locale.US, "%.1f", v)
 
-/** EV Remote: "46 kWh × SoH 93 % = 42,8 kWh usable" (numbers in the phone's format). */
+/** EV Remote: "46 kWh × 93 % = 42,8 kWh" (numbers in the phone's format); 100 % until the car has sent a SoH. */
 private fun batteryLine(newKwh: Double): String {
     val loc = java.util.Locale.getDefault()
     fun n(v: Double) = if (v % 1.0 == 0.0) v.toInt().toString() else String.format(loc, "%.1f", v)
     val soh = no.lionflow.app.model.ChargePower.sohPct()
     val usable = newKwh * (soh ?: 100.0) / 100.0
-    return "${n(newKwh)} kWh × SoH ${n(Math.round((soh ?: 100.0) * 10) / 10.0)} %" +
-        (if (soh == null) " (not reported yet)" else "") + " = ${String.format(loc, "%.1f", usable)} kWh usable"
+    return "${n(newKwh)} kWh × ${n(Math.round((soh ?: 100.0) * 10) / 10.0)} % = ${String.format(loc, "%.1f", usable)} kWh" +
+        if (soh == null) " (battery health not received yet)" else ""
 }
