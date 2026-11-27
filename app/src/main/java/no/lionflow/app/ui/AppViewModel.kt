@@ -223,14 +223,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     /**
      * EV Remote: a trip's way points – saved on the phone, else asked of the server (when the trip has a wayPoints
-     * link). A failed answer or 0 points is tried again later (WayPoints.mayTry: every 15 min, 5 times per trip).
+     * link). In the background a failed answer or 0 points is tried again later (WayPoints.mayTry: every 15 min, 5
+     * times per trip); when the user opens the trip ([userAsked]) it is always asked again.
      * Logs "wayPoints: HTTP <code>, <N> points (try n/5)" (never coordinates).
      */
-    suspend fun tripWayPoints(t: Trip): List<Triple<Double, Double, Long>> {
+    suspend fun tripWayPoints(t: Trip, userAsked: Boolean = false): List<Triple<Double, Double, Long>> {
         val ctx = getApplication<Application>()
         no.lionflow.app.model.WayPoints.saved(ctx, t.id)?.let { return it }
         val href = t.wayPointsHref ?: return emptyList()
-        if (isDemo || !no.lionflow.app.model.WayPoints.mayTry(ctx, t.id)) return emptyList()
+        if (isDemo || (!userAsked && !no.lionflow.app.model.WayPoints.mayTry(ctx, t.id))) return emptyList()
         val n = no.lionflow.app.model.WayPoints.noteTry(ctx, t.id)
         return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             var answer: Any? = null
@@ -240,9 +241,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             } catch (e: no.lionflow.app.api.ApiException) { "HTTP ${e.code}"
             } catch (e: Exception) { "failed (${e.javaClass.simpleName})" }
             val pts = no.lionflow.app.model.WayPoints.parse(answer)
-            remote.addLog("wayPoints: $result, ${pts.size} points (try $n/${no.lionflow.app.model.WayPoints.MAX_TRIES})")
+            remote.addLog("wayPoints: $result, ${pts.size} points (" + (if (userAsked) "trip opened, " else "") + "try $n/${no.lionflow.app.model.WayPoints.MAX_TRIES})")
             no.lionflow.app.model.WayPoints.saveDebug(ctx, t.id, result, answer)
-            if (pts.isNotEmpty()) { no.lionflow.app.model.WayPoints.save(ctx, t.id, pts); no.lionflow.app.model.WayPoints.clearTries(ctx, t.id) }
+            if (pts.isNotEmpty()) {
+                no.lionflow.app.model.WayPoints.save(ctx, t.id, pts); no.lionflow.app.model.WayPoints.clearTries(ctx, t.id)
+                // A newer trip than the one the car position comes from: its last point is the car position now.
+                val cur = wayPointEnd?.let { e -> _ui.value.trips.firstOrNull { it.id == e.first } }
+                if (cur == null || (t.endMillis ?: t.startMillis ?: 0L) > (cur.endMillis ?: cur.startMillis ?: 0L)) {
+                    wayPointEnd = Triple(t.id, pts.last().first, pts.last().second); applyFallbackPosition()
+                }
+            }
             pts
         }
     }

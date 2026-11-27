@@ -238,7 +238,7 @@ private fun TripDetail(vm: AppViewModel, trip: no.lionflow.app.model.Trip?, rout
 
             // EV Remote: without a route from the phone, the car's own way points for this trip (saved on the phone).
             var carPts by remember(trip?.id) { mutableStateOf<List<Triple<Double, Double, Long>>>(emptyList()) }
-            if (pts.size < 2 && trip != null) LaunchedEffect(trip.id) { carPts = vm.tripWayPoints(trip) }
+            if (pts.size < 2 && trip != null) LaunchedEffect(trip.id) { carPts = vm.tripWayPoints(trip, userAsked = true) }
 
             // Map, or a note about route tracking
             if (pts.size >= 2) RouteMap(pts)
