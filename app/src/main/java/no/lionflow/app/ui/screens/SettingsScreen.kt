@@ -22,6 +22,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import no.lionflow.app.ui.l10n.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -172,6 +173,12 @@ fun SettingsScreen(vm: AppViewModel, ui: UiState, s: AppSettings) {
             SegRow("Clock", listOf("24" to "24 h", "12" to "12 h", "system" to "System"), s.timeFormat) { v ->
                 set { it.copy(timeFormat = v) }
                 no.lionflow.app.ui.l10n.TimeFmt.setPreference(ctx, v)
+            }
+            Divider()
+            val places by no.lionflow.app.model.ChargeLog.places.collectAsState()
+            val currencies = (no.lionflow.app.model.ChargeLog.CURRENCIES + places.currency).distinct()
+            DropdownRow("Currency", "For charging and fuel prices", currencies.mapIndexed { i, cur -> i to cur }, currencies.indexOf(places.currency)) { i ->
+                no.lionflow.app.model.ChargeLog.savePlaces(no.lionflow.app.model.ChargeLog.places.value.copy(currency = currencies[i]))
             }
             if (showChargingSettings) {
                 Divider()
