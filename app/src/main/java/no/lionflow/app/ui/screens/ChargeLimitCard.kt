@@ -171,9 +171,9 @@ private fun ChargeWindowSection(vm: AppViewModel, s: AppSettings, st: no.lionflo
 /** The clock picker (same look as "Leave at" in the trip planner). */
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
-private fun ClockDialog(title: String, minutes: Int, onClose: () -> Unit, onSet: (Int) -> Unit) {
+internal fun ClockDialog(title: String, minutes: Int, onClose: () -> Unit, is24: Boolean = no.lionflow.app.ui.l10n.TimeFmt.use24, onSet: (Int) -> Unit) {
     val c = LocalLf.current
-    val time = androidx.compose.material3.rememberTimePickerState(initialHour = minutes / 60, initialMinute = minutes % 60, is24Hour = no.lionflow.app.ui.l10n.TimeFmt.use24)
+    val time = androidx.compose.material3.rememberTimePickerState(initialHour = minutes / 60, initialMinute = minutes % 60, is24Hour = is24)
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onClose, containerColor = c.card,
         title = { Text(title, color = c.text) },

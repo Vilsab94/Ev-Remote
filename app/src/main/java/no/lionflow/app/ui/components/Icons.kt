@@ -82,6 +82,7 @@ object LfIcons {
     val Upload = stroke("ul", "M12 15V3M7 8l5-5 5 5", "M4 19h16")
     val Car = stroke("car", "M5 17h14l-1.5-6.5A2 2 0 0 0 15.6 9H8.4a2 2 0 0 0-1.9 1.5z", circle(7.5f, 17.5f, 1.5f), circle(16.5f, 17.5f, 1.5f))
     val Close = stroke("close", "M6 6l12 12M18 6L6 18")
+    val Pencil = stroke("pencil", "M4 20h4L19 9l-4-4L4 16z", "M13.5 6.5l4 4")   // EV Remote: edit the scheduled start
     val Fan = stroke("fan", "M12 12c-2-3-1-7 2-8 1 3-1 5-2 8zM12 12c3-2 7-1 8 2-3 1-5-1-8-2zM12 12c2 3 1 7-2 8-1-3 1-5 2-8zM12 12c-3 2-7 1-8-2 3-1 5 1 8 2z")
     val Plug = stroke("plug", "M9 2v6M15 2v6", "M6 8h12v3a6 6 0 0 1-12 0z", "M12 17v5")
     val Image = stroke("image", "M3 5h18v14H3z", circle(9f, 10f, 1.6f), "M21 16l-5-5-8 8")

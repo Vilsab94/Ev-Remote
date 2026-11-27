@@ -859,6 +859,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     // What the user just asked for, kept until the car's status catches up (Peugeot's server lags behind).
     private var holdPrecond: Pair<Boolean, Long>? = null
     private var holdLock: no.lionflow.app.model.LockHold? = null
+    @Volatile private var holdStart: Pair<Int, Long>? = null   // EV Remote: (minutes after midnight, sent at)
 
     private fun applyHolds(st: VehicleStatus): VehicleStatus {
         val now = System.currentTimeMillis()
@@ -869,6 +870,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
         holdLock?.let { h ->
             if (h.holds(st, now)) out = out.copy(locked = h.want) else holdLock = null
+        }
+        // EV Remote: a start time just sent, shown until a car report from after the command has it (5 min at most).
+        holdStart?.let { (want, sentAt) ->
+            val reported = st.updatedAtMillis ?: 0L
+            val has = st.nextDelayedHour?.let { it * 60 + (st.nextDelayedMinute ?: 0) } == want
+            if (has || now - sentAt > 300_000L || reported > sentAt + 15_000L) holdStart = null
+            else out = out.copy(nextDelayedHour = want / 60, nextDelayedMinute = want % 60)
         }
         return out
     }
@@ -1056,12 +1064,40 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /**
-     * Turns off the car's scheduled (delayed) start, so it charges as soon as it is plugged in. "Stop charging" (also
-     * from the charge limit or charging times) works by setting that scheduled start, so it can stay on afterwards.
+     * EV Remote: the Opel API has only "immediate" or "delayed" + a time (/VehCharge), no separate on/off. The time
+     * can always be changed: it is sent with the mode in use, so "immediate" stays immediate. With the charging window
+     * on, its start is the same time: both change together.
      */
-    fun clearScheduledStart() = runCommand("Turn off scheduled start") { p ->
-        val st = _ui.value.status
-        remote.charging(true, st?.nextDelayedHour ?: 1, st?.nextDelayedMinute ?: 0, p)
+    fun setStartTime(min: Int) {
+        val st = _ui.value.status ?: return
+        if (!Caps.battery(st)) return
+        val h = min / 60; val m = min % 60
+        val optimistic: (VehicleStatus) -> VehicleStatus = { it.copy(nextDelayedHour = h, nextDelayedMinute = m) }
+        val s = settings.value
+        if (s.chargeWindowOn) {
+            runCommand("Scheduled start time", optimistic) { _ ->
+                val old = settings.value.chargeWindowFrom
+                settings.update { it.copy(chargeWindowFrom = min) }
+                val r = no.lionflow.app.work.ChargeWindow.applyToCar(getApplication()) ?: CommandResult.Failed("Remote control isn't set up")
+                if (r is CommandResult.Failed) settings.update { it.copy(chargeWindowFrom = old) } else holdStart = min to System.currentTimeMillis()
+                r
+            }
+            return
+        }
+        val delayed = no.lionflow.app.model.ChargePower.scheduledStart(st) != null
+        runCommand("Scheduled start time", optimistic) { p ->
+            remote.charging(!delayed, h, m, p).also { if (it !is CommandResult.Failed) holdStart = min to System.currentTimeMillis() }
+        }
+    }
+
+    /** EV Remote: "Delayed start" on = wait for the scheduled time, off = charge as soon as plugged in. Locked while the charging window is on. */
+    fun setDelayedStart(on: Boolean) {
+        val st = _ui.value.status ?: return
+        if (!Caps.battery(st) || settings.value.chargeWindowOn) return
+        val (h, m) = no.lionflow.app.model.ChargePower.startTime(st) ?: (1 to 0)
+        runCommand(if (on) "Delayed start on" else "Delayed start off", { it.copy(nextDelayedHour = h, nextDelayedMinute = m) }) { p ->
+            remote.charging(!on, h, m, p)
+        }
     }
 
     fun wakeUp() = runCommand("Wake car") { p -> remote.wakeUp(p) }
