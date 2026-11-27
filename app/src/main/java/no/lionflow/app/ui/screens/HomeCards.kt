@@ -318,6 +318,12 @@ private fun plainRows(st: VehicleStatus, s: AppSettings): List<Pair<String, List
     section("Position", listOf(
         "Latitude, longitude" to (if (st.lat != null && st.lon != null) String.format(Locale.US, "%.5f, %.5f", st.lat, st.lon) else null),
         "Facing" to st.heading?.let { "${CarData.compass(it)} · ${it.roundToInt()}°" },
+        // EV Remote: where the position comes from.
+        "Source" to (if (st.lat == null || st.lon == null) null else when (st.positionSource) {
+            "trip" -> "trip" + (st.positionAtMillis?.let { " " + java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT, L10n.locale).format(java.util.Date(it)) } ?: "")
+            "phone" -> "phone GPS"
+            else -> "lastPosition"
+        }),
     ))
     section("Service", listOf(
         "Next service" to listOfNotNull(st.kmToService?.let { fmtDistance(it, s) }, st.daysToService?.let { tr("{0} days").replace("{0}", "${it.roundToInt()}") }).joinToString(" · ").ifEmpty { null },
