@@ -253,6 +253,28 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         applyFallbackPosition()
     }
 
+    /**
+     * EV Remote: the wake-ups while charging run at night; Android's battery optimization can hold them back.
+     * Asked once (with an explanation) when the car is plugged in and remote control is set up.
+     */
+    var askBatteryOptimization by androidx.compose.runtime.mutableStateOf(false)
+    fun ignoresBatteryOptimization(): Boolean {
+        val pm = getApplication<Application>().getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager
+        return pm.isIgnoringBatteryOptimizations(getApplication<Application>().packageName)
+    }
+    fun answerBatteryOptimization(allow: Boolean) {
+        askBatteryOptimization = false
+        settings.setRaw("askedBatteryOpt", "true")
+        if (!allow) return
+        val ctx = getApplication<Application>()
+        try {
+            ctx.startActivity(android.content.Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                android.net.Uri.parse("package:" + ctx.packageName)).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+        } catch (_: Exception) {
+            try { ctx.startActivity(android.content.Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (_: Exception) { }
+        }
+    }
+
     /** EV Remote: for "All car data": the last wayPoints answer (HTTP result, first and last point as sent). */
     fun wayPointsDebug(): String? = no.lionflow.app.model.WayPoints.debug(getApplication())
     private fun applyFallbackPosition() = _ui.update { it.copy(status = withFallbackPosition(it.status, it.trips, it.routes)) }
@@ -778,6 +800,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                         lastRefresh = now, now = now, tab = if (Caps.tab(it.tab, st)) it.tab else Tab.Home)
                 }
                 applyFallbackPosition()
+                // EV Remote: plan the wake-ups while charging; ask once to let them run at night.
+                if (!isDemo && !missing) {
+                    try { no.lionflow.app.work.ChargeWake.plan(app(), st) } catch (_: Exception) { }
+                    if (st.plugged && remote.isSetUp && !ignoresBatteryOptimization() && !settings.raw("askedBatteryOpt").toBoolean()) askBatteryOptimization = true
+                }
                 if (_ui.value.trips.isEmpty() && !_ui.value.tripsLoading) loadTrips()
                 if (!missing) loadAlerts(selected)
                 if (Caps.battery(st) && !st.preconditioningOn && no.lionflow.app.work.ChargeLimit.due(getApplication(), st)) viewModelScope.launch {

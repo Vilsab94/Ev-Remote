@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- EV Remote: wake the car at exact times while it charges (Android's Doze would delay normal background work) -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.INTERNET" />
@@ -83,6 +89,16 @@
             android:name=".route.RouteService"
             android:exported="false"
             android:foregroundServiceType="location" />
+
+        <!-- EV Remote: exact alarm that wakes the car while it charges (work/ChargeWake.kt) -->
+        <receiver
+            android:name=".work.ChargeWakeReceiver"
+            android:exported="false" />
+        <!-- EV Remote: expedited background work runs as a short foreground service on Android 8–11 -->
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="dataSync"
+            tools:node="merge" />
 
         <receiver
             android:name=".update.InstallResultReceiver"

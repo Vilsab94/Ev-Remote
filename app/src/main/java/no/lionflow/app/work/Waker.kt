@@ -40,6 +40,20 @@ object Waker {
         return sent
     }
 
+    /**
+     * EV Remote: wake-up for the charging checks (ChargeWake). True = the car answered, false = sent but no answer
+     * within a minute, null = not sent (remote control not set up / no connection). Not held back by the pause after
+     * unanswered wake-ups: while charging the car's 12 V battery is fed, and ChargeWake stops after 3 misses itself.
+     */
+    suspend fun wakeAndWait(app: LionFlowApp): Boolean? {
+        if (!app.remote.isSetUp) return null
+        try { app.remote.warmUp() } catch (_: Exception) { }
+        val awake = CompletableDeferred<Unit>()
+        val sent = app.remote.preWake(0L, force = true) { awake.complete(Unit) }
+        if (!sent) return null
+        return withTimeoutOrNull(60_000) { awake.await() } != null
+    }
+
     /** Wake, read the status, update the widget. */
     suspend fun wakeAndRefresh(app: LionFlowApp) {
         val vehicle = app.api.cachedVehicle() ?: return

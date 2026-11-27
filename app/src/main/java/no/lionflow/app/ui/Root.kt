@@ -116,6 +116,18 @@ fun LionFlowRoot(vm: AppViewModel, platform: Platform) {
                         confirmButton = { androidx.compose.material3.TextButton(onClick = { vm.dismissWhatsNew() }) { Text("OK", color = c.accentInk) } },
                     )
                 }
+                // EV Remote: asked once, so the wake-ups while charging aren't held back at night.
+                if (vm.askBatteryOptimization) androidx.compose.material3.AlertDialog(
+                    onDismissRequest = { vm.answerBatteryOptimization(false) },
+                    containerColor = c.card,
+                    title = { Text("Let EV Remote run at night?", color = c.text) },
+                    text = {
+                        Text("While the car charges it sends no updates by itself, so EV Remote wakes it every 15 minutes (every 5 near your charge limit) to follow the charge and stop it at the limit. Android's battery optimization can delay this at night. On the next screen, allow EV Remote to run in the background. It only wakes the car while it is plugged in and charging.",
+                            style = Type.small, color = c.text2)
+                    },
+                    confirmButton = { androidx.compose.material3.TextButton(onClick = { vm.answerBatteryOptimization(true) }) { Text("Allow", color = c.accentInk) } },
+                    dismissButton = { androidx.compose.material3.TextButton(onClick = { vm.answerBatteryOptimization(false) }) { Text("Not now", color = c.muted) } },
+                )
                 val upd = ui.update
                 if (upd != null && !ui.updateDismissed) {
                     val busy = ui.updateStatus?.let { it.startsWith("Downloading") || it.startsWith("Installing") } == true

@@ -43,7 +43,9 @@ class StatusWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx
                 ChargeWindow.check(app, st)?.let { msg -> notify(8, "Charging times", msg) }
             }
             if (st.energyType != "Fuel") ChargeWindow.schedule(app)
-            if (st.isCharging) {
+            // EV Remote: with remote control, ChargeWake wakes the car while it charges (reading alone sees old data).
+            try { ChargeWake.plan(app, st) } catch (_: Exception) { }
+            if (st.isCharging && !app.remote.isSetUp) {
                 val near = s.chargeLimitOn && (st.batteryPct ?: 0.0) >= s.chargeLimitPct - 6
                 androidx.work.WorkManager.getInstance(applicationContext).enqueueUniqueWork(
                     "charge_follow", androidx.work.ExistingWorkPolicy.REPLACE,

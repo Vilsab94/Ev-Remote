@@ -34,6 +34,7 @@ open class LionFlowApp : Application() {
         api = StellantisApi(this, secure, settings)
         remote = RemoteControl(api, secure)
         api.log = { remote.addLog(it) }   // EV Remote: lastPosition HTTP result in the command & error log
+        remote.logFile = java.io.File(filesDir, "command_log.txt")   // EV Remote: the log survives app restarts
         no.lionflow.app.model.ChargePower.init(this, settings, api.cachedVehicle()?.vin)
         no.lionflow.app.model.ChargeLog.init(this, api.cachedVehicle()?.vin)
         no.lionflow.app.model.OutsideTemp.init(this)   // EV Remote

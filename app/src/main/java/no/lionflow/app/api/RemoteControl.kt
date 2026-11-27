@@ -55,10 +55,23 @@ class RemoteControl(private val api: StellantisApi, private val secure: SecureSt
 
     /** Last answers from the car, newest first — shown in Settings › Command log for troubleshooting. */
     val log = java.util.concurrent.ConcurrentLinkedDeque<String>()
+
+    /**
+     * EV Remote (PLAN.md item 6): the log is kept on the phone (last [LOG_MAX] lines, with the date), so what happened
+     * at night (wake-ups while charging) can be read in the morning. Set by the app at start; loads what was saved.
+     */
+    @Volatile var logFile: java.io.File? = null
+        set(f) {
+            field = f
+            try { f?.takeIf { it.exists() }?.readLines()?.filter { it.isNotBlank() }?.take(LOG_MAX)?.let { log.clear(); log.addAll(it) } } catch (_: Exception) { }
+        }
+
     fun addLog(line: String) {
-        val t = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
+        val t = SimpleDateFormat("dd.MM HH:mm:ss", Locale.getDefault()).format(Date())
         log.addFirst("$t  $line")
-        while (log.size > 40) log.pollLast()
+        while (log.size > LOG_MAX) log.pollLast()
+        val f = logFile ?: return
+        synchronized(log) { try { f.writeText(log.joinToString("\n")) } catch (_: Exception) { } }
     }
     @Volatile private var lastWake = 0L
     // When the car doesn't answer wake-ups (asleep connection, or "busy with another request"), stop
@@ -443,6 +456,7 @@ class RemoteControl(private val api: StellantisApi, private val secure: SecureSt
     companion object {
         private val IN_PROGRESS = setOf("900", "901", "902")
         const val K_OTP = "otp_state"
+        const val LOG_MAX = 500   // EV Remote: lines kept in the command & error log
         const val K_PIN = "security_code"
         const val K_MQTT_ACCESS = "mqtt_access"
         const val K_MQTT_EXP = "mqtt_expires"
