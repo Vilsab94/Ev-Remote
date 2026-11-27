@@ -119,6 +119,8 @@ customised for an Opel Mokka-e. All credit for the original app goes to its auth
   `ClockDialog`, now internal in ChargeLimitCard.kt) → `AppViewModel.setStartTime()` (same mode; with the charging window
   on it moves the window start via `ChargeWindow.applyToCar`); "Delayed start" switch → `setDelayedStart()` (locked on,
   "Set by charging window", while the window is on). `holdStart` in `applyHolds` keeps the sent time until the car
-  reports it. "Turn off"/`clearScheduledStart` and "Charge now" removed; Charging and Home show "Stop charging" only
+  reports it. The window's From is always the car's start time: `AppViewModel.syncWindowFrom()` moves it to a time reported
+  >15 s after our last /VehCharge (`ChargePower.lastStartSentAt()`); the pencil moves it too, also with the window off.
+  "Turn off"/`clearScheduledStart` and "Charge now" removed; Charging and Home show "Stop charging" only
   while charging.
 - When merging upstream: keep our README.md, UPSTREAM.md, PLAN.md and .github/workflows/build.yml.

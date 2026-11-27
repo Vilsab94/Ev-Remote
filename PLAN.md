@@ -42,7 +42,8 @@ Findings from testing LionFlow with this car (Nov 2026):
 5. ✅ **Done (2026-11-27, not yet tested on the car)** – **Scheduled charging start**: allow changing the time (not only
    turning it off), like myOpel. → Charging screen: time with a pencil (24 h), "Delayed start" switch (immediate /
    delayed), the same time as the charging window start (switch locked while the window is on); "Stop charging" only
-   while charging. "immediate" is forgotten when the car reports a time set elsewhere.
+   while charging. "immediate" is forgotten when the car reports a time set elsewhere. The window's "From" is always
+   the scheduled start time (one value, also when the window is off).
 6. ✅ **Done (2026-11-27)** – **Command & error log** saved on the phone (`command_log.txt`, last 500 lines, with date).
 7. Hide (don't delete, to keep upstream merges easy): trip planner, Android Auto entry, Norway
    prices/NOBIL, YouTube screen.
