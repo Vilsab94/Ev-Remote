@@ -124,6 +124,13 @@ customised for an Opel Mokka-e. All credit for the original app goes to its auth
   "Delayed start" shows the car's state (`ChargePower.delayedNow()`: plugged + Stopped + start time → on, charging →
   off, else what was last sent; `learnStartMode()` forgets "immediate" when the car waits >5 min after it);
   `holdCharging` keeps the asked-for status up to 3 min.
+  The switch is `DelayedStartControl` (ChargingClimate.kt): a big "Charge now | Delayed · 04:30" control on the Charging
+  screen and on Home's battery card (and ChargingSummary), replacing the small toggle and "Stop charging"; Home's
+  `chargingLine()` shows "Plugged in · delayed until 04:30".
+- Pre-heating unplugged (PLAN item 4): the car reports "Disabled" while it heats. `ChargePower.fixPreheat()` sets
+  `VehicleStatus.preheatGuess` (`preheating` = reported or guessed) when unplugged, parked, reported in the last 15 min
+  and in a schedule window (−25…+10 min) or ≤30 min after a pre-heat from EV Remote (`rememberPrecond`, not after a
+  stop). UI, widget, watch and the finished notification use `preheating`; schedule saves still send the reported value.
   "Turn off"/`clearScheduledStart` and "Charge now" removed; Charging and Home show "Stop charging" only
   while charging.
 - When merging upstream: keep our README.md, UPSTREAM.md, PLAN.md and .github/workflows/build.yml.

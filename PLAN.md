@@ -34,7 +34,9 @@ Findings from testing LionFlow with this car (Nov 2026):
      position (at stoppedAt, "from the last trip"); a newer phone GPS point wins. Trip details draw the route
      from them when the phone has none. Log: "wayPoints: HTTP <code>, <N> points (try n/5)"; failed or empty
      answers are tried again (15 min, 5 times per trip). All car data shows the position's source.
-4. **Pre-heating by timer not shown when unplugged**: `preconditioning.airConditioning.status`
+4. ✅ **Partly done (2026-11-27, not yet tested on the car)** – shown as "probably on" when unplugged, awake and in a
+   schedule window or after a pre-heat from EV Remote (see UPSTREAM.md). The Stop switch on error 1 is not done.
+   **Pre-heating by timer not shown when unplugged**: `preconditioning.airConditioning.status`
    stays `Disabled` while the car heats (battery drops ~3 kW, car awake). Plugged in it shows Enabled.
    → If "already running" (error 1) comes back, switch button to Stop. Stop sends `deactivate`
      (error 4 = wasn't running, harmless). Optionally infer "heating by timer" from: timer window
@@ -45,7 +47,7 @@ Findings from testing LionFlow with this car (Nov 2026):
    while charging. "immediate" is forgotten when the car reports a time set elsewhere. The window's "From" is always
    the scheduled start time (one value, also when the window is off).
    "Delayed start" shows what the car does: waiting when plugged in (also set with the car's buttons) → on, charging →
-   off; on while charging stops it until the scheduled time.
+   off; on while charging stops it until the scheduled time. Big "Charge now | Delayed" switch on Charging and Home.
 6. ✅ **Done (2026-11-27)** – **Command & error log** saved on the phone (`command_log.txt`, last 500 lines, with date).
 7. Hide (don't delete, to keep upstream merges easy): trip planner, Android Auto entry, Norway
    prices/NOBIL, YouTube screen.
