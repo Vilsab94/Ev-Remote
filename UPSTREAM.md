@@ -79,4 +79,13 @@ customised for an Opel Mokka-e. All credit for the original app goes to its auth
 - Removed from Settings: "Support LionFlow" (Ko-fi) and "Send feedback" (mailed the LionFlow author);
   added "Source code" link and a LionFlow credit in the footer.
 - No usage ping (`countActiveDevice`), updates from Vilsab94/Ev-Remote, package `lt.vilsab.evremote`.
+- Privacy (2026-11-27): manifest no longer asks for RECORD_AUDIO (voice search only in Android Auto),
+  androidx.car.app NAVIGATION_TEMPLATES/ACCESS_SURFACE, CAR_SPEED, CAR_FUEL (`tools:node="remove"` so a library
+  can't add them back); the Android Auto meta-data and `car.LionFlowCarService` entry are removed (code in `car/`
+  kept, `CarHub.doorsLine` is still used by Home and the watch). Kept on purpose: ACCESS_BACKGROUND_LOCATION,
+  FOREGROUND_SERVICE_LOCATION, BLUETOOTH/BLUETOOTH_CONNECT – used by Route tracking (Settings, trip maps and the
+  phone-GPS car position); they are only asked for when the user turns it on.
+- Error texts use `Brands.current.display`/`.app` instead of a fixed "Peugeot"/"MyPeugeot": `Http.describeHttpError`,
+  RemoteControl (`mapCode`, MQTT errors, "Sent to …"), AppViewModel (`NO_REMOTE` is now a getter, session expired,
+  servers down, no car), CarWidget refresh texts. UI texts already go through `Brands.apply` in `L10n.tr`.
 - When merging upstream: keep our README.md, UPSTREAM.md, PLAN.md and .github/workflows/build.yml.
