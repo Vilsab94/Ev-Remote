@@ -79,6 +79,13 @@ object ChargePower {
     /** EV Remote: usable capacity now = new battery × SoH (100 % until the car has sent one). */
     fun userKwh(): Double? = newKwh()?.let { it * (sohPct() ?: 100.0) / 100.0 }
 
+    /** EV Remote: a higher SoH than the saved one is only taken once the saved one is this old. */
+    private const val SOH_KEEP_MS = 60L * 86_400_000L
+    private fun fmtPct(v: Double) = if (v % 1.0 == 0.0) v.toInt().toString() else String.format(Locale.US, "%.1f", v)
+
+    /** EV Remote: the command & error log (set in LionFlowApp). */
+    @Volatile var log: ((String) -> Unit)? = null
+
     /**
      * EV Remote: the server's battery figures are wrong for some cars (Mokka-e: capacity 32.96 kWh, real ~43 kWh),
      * while the level % is right. The energy in the battery becomes level % × [userKwh], so charging kW, time to
@@ -92,15 +99,27 @@ object ChargePower {
         if (st.energyType != "Electric") return st
         val p = prefs
         // Only a SoH that is really in this report is saved (with the report's time), not one filled in from before.
+        // The Mokka-e sends health.resistance only, sometimes 100 (not worked out yet) and sometimes 93 (the real one,
+        // confirmed with OBD). A higher value is only taken when the saved one is older than 60 days, so the usable
+        // capacity (new × SoH) doesn't jump between 42.8 and 46 kWh.
         VehicleStatus.sohSourceOf(st.raw)?.let { (soh, src) ->
             val at = st.updatedAtMillis ?: System.currentTimeMillis()
-            if (p != null && (p.getFloat(k("soh"), 0f) != soh.toFloat() || p.getLong(k("sohAt"), 0L) < at || p.getString(k("sohSrc"), "") != src))
+            val kept = sohPct()
+            val keptAt = sohAtMillis() ?: 0L
+            val take = kept == null || soh <= kept || at - keptAt > SOH_KEEP_MS
+            if (!take) {
+                if (p != null && p.getLong(k("sohIgnoredAt"), 0L) != at) {
+                    p.edit().putLong(k("sohIgnoredAt"), at).apply()
+                    try { log?.invoke("health ignored: ${fmtPct(soh)} (kept ${fmtPct(kept!!)})") } catch (_: Exception) { }
+                }
+            } else if (p != null && (p.getFloat(k("soh"), 0f) != soh.toFloat() || p.getLong(k("sohAt"), 0L) < at || p.getString(k("sohSrc"), "") != src))
                 p.edit().putFloat(k("soh"), soh.toFloat()).putFloat("soh_any", soh.toFloat())
                     .putLong(k("sohAt"), at).putLong("sohAt_any", at)
                     .putString(k("sohSrc"), src).putString("sohSrc_any", src).apply()
         }
         st.capacityKwh?.let { cap -> if (p != null && p.getFloat(k("srvCap"), 0f) != cap.toFloat()) p.edit().putFloat(k("srvCap"), cap.toFloat()).apply() }
-        val shown = st.copy(batteryHealthPct = st.batteryHealthPct ?: sohPct())
+        // The saved SoH is the one in use (a report's own value may have been ignored above).
+        val shown = st.copy(batteryHealthPct = sohPct() ?: st.batteryHealthPct)
         val b = userKwh() ?: return shown
         return shown.copy(residualKwh = st.batteryPct?.let { it / 100.0 * b }, capacityKwh = b)
     }
