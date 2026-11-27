@@ -23,6 +23,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import no.lionflow.app.ui.l10n.Text
+import no.lionflow.app.ui.l10n.tr
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -101,8 +102,11 @@ fun TripsScreen(vm: AppViewModel, ui: UiState, s: AppSettings, wide: Boolean) {
             Row(Modifier.fillMaxWidth()) {
                 Stat(Modifier.weight(1f), fmtDistance(km, s).substringBefore(" "), if (s.distanceUnit == "mi") "mi driven" else "km driven")
                 if (showFuel) Stat(Modifier.weight(1f), avgL?.let { String.format(Locale.US, "%.1f", it) } ?: "—", "l/100 km")
-                if (!showFuel || (avg != null && no.lionflow.app.ui.Caps.battery(ui.status))) Stat(Modifier.weight(1f), avg?.let { String.format(Locale.US, "%.1f", it) } ?: "—", "kWh/100 km")
+                // EV Remote: battery % drop × usable capacity, not the car's trip computer (cold adds battery heating).
+                if (!showFuel || (avg != null && no.lionflow.app.ui.Caps.battery(ui.status))) Stat(Modifier.weight(1f), avg?.let { String.format(Locale.US, "%.1f", it) } ?: "—", "kWh/100 km from battery")
                 Stat(Modifier.weight(1f), "${list.size}", "trips")
+                // EV Remote: average outside temperature of these trips.
+                no.lionflow.app.model.OutsideTemp.average(list)?.let { Stat(Modifier.weight(1f), no.lionflow.app.ui.fmtTemp(it, s), "avg outside") }
             }
             // bars per day (week) or per week (month)
             val buckets = if (period == "week") 7 else 5
@@ -147,15 +151,19 @@ fun TripsScreen(vm: AppViewModel, ui: UiState, s: AppSettings, wide: Boolean) {
                         Box(Modifier.size(40.dp).clip(RoundedCornerShape(14.dp)).background(c.raisedBlue), contentAlignment = Alignment.Center) { LfIcon(if (route != null) LfIcons.Map else LfIcons.Route, c.blueInk, 20.dp) }
                         Column(Modifier.weight(1f)) {
                             Text(t.startMillis?.let { fmt.format(Date(it)) } ?: "Trip", style = Type.label, color = c.text)
-                            Text(listOfNotNull(t.durationSec?.let { "${(it / 60).toInt()} min" }, t.avgSpeedKmh?.let { "${it.toInt()} km/h avg" }).joinToString(" · "), style = Type.small, color = c.muted)
+                            Text(listOfNotNull(t.durationSec?.let { "${(it / 60).toInt()} min" }, t.avgSpeedKmh?.let { "${it.toInt()} km/h avg" },
+                                no.lionflow.app.model.OutsideTemp.at(t.startMillis)?.let { no.lionflow.app.ui.fmtTemp(it, s) }).joinToString(" · "), style = Type.small, color = c.muted)
                         }
                         TripTagSlot(vm, s, t)
                         Column(horizontalAlignment = Alignment.End) {
                             Text(fmtDistance(t.distanceKm, s), style = Type.label.copy(fontSize = 17.sp), color = c.text)
-                            if (!mildHybrid) t.avgKwhPer100?.let { Text(String.format(Locale.US, "%.1f kWh/100", it), style = Type.tiny, color = c.muted) }
                             // Battery used on the trip, in % and kWh.
                             val used = t.kwh?.takeIf { it > 0 } ?: t.avgKwhPer100?.let { it * t.distanceKm / 100 }
                             val battery = ui.status?.takeUnless { mildHybrid }?.let { no.lionflow.app.model.ChargePower.usableKwh(it) }
+                            // EV Remote: "from battery" (% drop × usable capacity); under 3 % drop it's rough: "≈" and lighter grey.
+                            val rough = used != null && battery != null && battery > 0 && used / battery * 100 < 3
+                            if (!mildHybrid) t.avgKwhPer100?.let { androidx.compose.material3.Text((if (rough) "≈ " else "") + String.format(Locale.US, "%.1f kWh/100", it) + " " + tr("from battery"),
+                                style = Type.tiny, color = if (rough) c.muted.copy(alpha = 0.55f) else c.muted) }
                             if (used != null && battery != null && battery > 0) androidx.compose.material3.Text(
                                 String.format(Locale.US, "−%.0f %% · %.1f kWh", used / battery * 100, used), style = Type.tiny, color = c.muted)
                             t.avgLPer100?.let { Text(String.format(Locale.US, "%.1f l/100", it), style = Type.tiny, color = c.muted) }
@@ -254,10 +262,19 @@ private fun TripDetail(vm: AppViewModel, trip: no.lionflow.app.model.Trip?, rout
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 tile(Modifier.weight(1f), "Average speed", speed?.let { if (s.distanceUnit == "mi") "${Math.round(it * 0.621371)} mph" else "${Math.round(it)} km/h" } ?: "—")
                 when {
-                    !mildHybrid && trip?.avgKwhPer100 != null -> tile(Modifier.weight(1f), "Consumption", String.format(Locale.US, "%.1f kWh/100", trip.avgKwhPer100))
+                    // EV Remote: from the battery % drop × usable capacity; "≈" when the drop was under 3 %.
+                    !mildHybrid && trip?.avgKwhPer100 != null -> {
+                        val usable = no.lionflow.app.model.ChargePower.userKwh()
+                        val rough = usable != null && usable > 0 && (trip.kwh ?: 0.0) / usable * 100 < 3
+                        tile(Modifier.weight(1f), "Consumption from battery", (if (rough) "≈ " else "") + String.format(Locale.US, "%.1f kWh/100", trip.avgKwhPer100))
+                    }
                     trip?.avgLPer100 != null -> tile(Modifier.weight(1f), "Fuel", String.format(Locale.US, "%.1f l/100", trip.avgLPer100))
                     else -> tile(Modifier.weight(1f), "Consumption", "—")
                 }
+            }
+            // EV Remote: outside temperature nearest to the trip's start.
+            no.lionflow.app.model.OutsideTemp.at(trip?.startMillis)?.let { temp ->
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { tile(Modifier.weight(1f), "Outside temperature", no.lionflow.app.ui.fmtTemp(temp, s)) }
             }
             val energy = trip?.kwh?.takeIf { !mildHybrid && it > 0 }?.let { String.format(Locale.US, "%.1f kWh", it) }
             val fuel = trip?.liters?.let { String.format(Locale.US, "%.1f l", it) }

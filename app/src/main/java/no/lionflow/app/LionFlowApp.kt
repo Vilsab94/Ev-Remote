@@ -36,6 +36,7 @@ open class LionFlowApp : Application() {
         api.log = { remote.addLog(it) }   // EV Remote: lastPosition HTTP result in the command & error log
         no.lionflow.app.model.ChargePower.init(this, settings, api.cachedVehicle()?.vin)
         no.lionflow.app.model.ChargeLog.init(this, api.cachedVehicle()?.vin)
+        no.lionflow.app.model.OutsideTemp.init(this)   // EV Remote
 
         // "Remember me" off: start every cold launch signed out.
         if (!settings.value.rememberMe && api.isSignedIn) {

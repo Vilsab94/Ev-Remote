@@ -164,6 +164,7 @@ object ChargePower {
         val st = applyPendingPrograms(fixRange(applyBatterySize(fixLevel(raw))))
         try { ChargeLog.observe(st) } catch (_: Exception) { }
         try { CarTrips.observe(st) } catch (_: Exception) { }
+        try { OutsideTemp.record(st) } catch (_: Exception) { }   // EV Remote: temperature per trip
         val p = prefs ?: return st
         remember(p, st)
         if (!st.isCharging) { p.edit().remove(k("s")).apply(); return st }
