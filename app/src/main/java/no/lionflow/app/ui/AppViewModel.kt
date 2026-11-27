@@ -253,6 +253,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         applyFallbackPosition()
     }
 
+    /** EV Remote: unplugged and under 55 %: the car may refuse to pre-heat (seen below about 50 %). */
+    fun preheatLowBattery(st: VehicleStatus?): Boolean =
+        st != null && st.energyType != "Fuel" && !st.plugged && (st.batteryPct ?: 100.0) < 55
+
     /**
      * EV Remote: the wake-ups while charging run at night; Android's battery optimization can hold them back.
      * Asked once (with an explanation) when the car is plugged in and remote control is set up.
@@ -887,7 +891,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 // Arrives later only when we stopped waiting at "delivered".
                 onFinal = { r ->
                     when (r) {
-                        is CommandResult.Failed -> { holdPrecond = null; holdLock = null; remote.addLog("$label failed: ${r.reason}"); toast("$label didn't go through: ${r.reason}") }
+                        is CommandResult.Failed -> { holdPrecond = null; holdLock = null; remote.addLog("$label failed: ${r.reason}")
+                            // EV Remote: the likely cause when pre-heating is refused unplugged on a low battery.
+                            val why = if (label == "Pre-heating" && preheatLowBattery(_ui.value.status)) " " + no.lionflow.app.ui.l10n.L10n.tr(PREHEAT_LOW_TEXT) else ""
+                            toast("$label didn't go through: ${r.reason}.$why") }
                         else -> {}
                     }
                     viewModelScope.launch { delay(2_000); refresh() }
@@ -1391,5 +1398,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     private companion object {
         const val NO_REMOTE = "Peugeot doesn't offer remote control for this car to EV Remote. Check that remote commands (like pre-heating) work in the MyPeugeot app and that remote services are activated there (they need a subscription from the car brand, see Settings). You can still skip and use EV Remote for status, charging and trips."
+        /** EV Remote: shown with Pre-heat when the car is unplugged and under 55 %. */
+        const val PREHEAT_LOW_TEXT = "Not plugged in: the car may refuse to pre-heat below about 50 % battery. Plug in or charge first."
     }
 }

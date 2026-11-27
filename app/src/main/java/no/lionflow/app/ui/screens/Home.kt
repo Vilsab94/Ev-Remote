@@ -459,6 +459,7 @@ private fun ClimateTile(modifier: Modifier, vm: AppViewModel, ui: UiState, s: Ap
             Text(if (on) "Pre-heating" else "Off", style = Type.display.copy(fontSize = 28.sp, fontWeight = FontWeight.Bold), color = c.text)
             Text("Outside ${fmtTemp(st?.outsideTempC ?: ui.weather?.tempC, s)}", style = Type.small, color = c.muted)
             nextSchedule(st)?.let { Text("Next: $it", style = Type.tiny, color = c.muted) }
+            PreheatLowBatteryNote(vm, st)   // EV Remote
         }
         androidx.compose.foundation.layout.Spacer(Modifier.weight(1f, fill = false))
         if (vm.remoteReady) no.lionflow.app.ui.components.PrimaryButton(if (on) "Stop" else "Pre-heat", Modifier.fillMaxWidth(), color = c.orange) {

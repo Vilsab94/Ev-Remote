@@ -185,6 +185,7 @@ fun ClimateScreen(vm: AppViewModel, ui: UiState, s: AppSettings, wide: Boolean) 
                     confirm(if (on) "Start pre-heating" else "Stop pre-heating") { vm.preconditioning(on) }
                 }
                 Text("Heats or cools the cabin for a limited time (about 10–30 minutes, depending on the car). Uses grid power when plugged in.", style = Type.tiny, color = c.muted)
+                PreheatLowBatteryNote(vm, st)   // EV Remote
             }
         }
 
@@ -292,4 +293,13 @@ private fun TimeToTarget(ui: UiState, s: AppSettings) {
         SecondaryButton("Set alarm for $clock", Modifier.fillMaxWidth()) { platform.setAlarm(h, m, "EV Remote: car at $target %") }
         Text("Worked out from the car's time to 100 %. Handy if the automatic stop doesn't work for you: stop charging yourself when the alarm rings.", style = Type.tiny, color = c.muted, modifier = Modifier.padding(top = 8.dp))
     }
+}
+
+/** EV Remote: next to Pre-heat, when the car is unplugged and under 55 % (it may refuse to pre-heat below ~50 %). */
+@Composable
+internal fun PreheatLowBatteryNote(vm: AppViewModel, st: no.lionflow.app.model.VehicleStatus?, modifier: Modifier = Modifier) {
+    if (!vm.preheatLowBattery(st)) return
+    val c = LocalLf.current
+    Text("Not plugged in: the car may refuse to pre-heat below about 50 % battery. Plug in or charge first.",
+        style = Type.tiny, color = c.orangeInk, modifier = modifier)
 }
