@@ -75,7 +75,8 @@ customised for an Opel Mokka-e. All credit for the original app goes to its auth
   "46 kWh × 93 % = 42,8 kWh".
 - Trips: `model/OutsideTemp.kt` keeps environment.air.temp with its time (from `ChargePower.record()`); trip list
   shows the temperature nearest each trip start and the average in the header; kWh/100 km labelled
-  "from battery", "≈" + lighter grey when the battery dropped < 3 % (TripsService.kt).
+  "from battery", "≈" + lighter grey when the battery dropped < 3 % (TripsService.kt). Trip details: "Energy used" shows
+  "1.4 kWh · −3 %" like the list.
 - wayPoints: `Trip.wayPointsHref` (_links.wayPoints.href); `StellantisApi.wayPoints()` (token only to the API host);
   `model/WayPoints.kt` parses/saves points (filesDir/waypoints) and the debug text for All car data;
   `AppViewModel.tripWayPoints()` / `loadNewestWayPoints()`; `withFallbackPosition()` uses the newest trip's last
