@@ -179,9 +179,13 @@ object ChargePower {
     /** The time the car has for its delayed start, whether or not it is in use; null when the car reports none. */
     fun startTime(st: VehicleStatus): Pair<Int, Int>? = st.nextDelayedHour?.let { it to (st.nextDelayedMinute ?: 0) }
 
+    /** EV Remote: when EV Remote last sent /VehCharge that the car accepted (0 if never). */
+    fun lastStartSentAt(): Long = prefs?.getLong(k("startSentAt"), 0L) ?: 0L
+
     /** Called after /VehCharge was accepted: [hour]:[minute] is the time sent with it. */
     fun rememberStartMode(immediate: Boolean, hour: Int, minute: Int) {
-        prefs?.edit()?.putString(k("startMode"), if (immediate) "immediate,$hour:$minute,${System.currentTimeMillis()}" else "delayed")?.apply()
+        prefs?.edit()?.putString(k("startMode"), if (immediate) "immediate,$hour:$minute,${System.currentTimeMillis()}" else "delayed")
+            ?.putLong(k("startSentAt"), System.currentTimeMillis())?.apply()
     }
 
     private fun remember(p: android.content.SharedPreferences, st: VehicleStatus) {

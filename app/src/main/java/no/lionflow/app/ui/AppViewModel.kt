@@ -807,6 +807,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 val selected = _ui.value.vehicle ?: v
                 if (profile != api.profile || selected.vin != v.vin) return@launch
                 val st = applyHolds(no.lionflow.app.model.ChargePower.record(api.parseStatus(selected, raw, maint)))
+                if (!isDemo) syncWindowFrom(st)   // EV Remote: the window's start is the car's scheduled start
                 if (settings.value.smartMode.isNotEmpty() && !programsPending()) try { no.lionflow.app.work.SmartSchedule.syncFromCar(app(), st.programs) } catch (_: Exception) {}
                 val now = System.currentTimeMillis()
                 settings.lastRefresh = now
@@ -1048,6 +1049,23 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /**
+     * EV Remote: the charging window's start and the car's scheduled start are one value. A car report with another
+     * time (set in the car or myOpel, or before EV Remote kept them together) moves the window's start to it; reports
+     * from before (or just after) our last /VehCharge, and while a sent time is still held, don't count.
+     */
+    private fun syncWindowFrom(st: VehicleStatus) {
+        val (h, m) = no.lionflow.app.model.ChargePower.startTime(st) ?: return
+        val min = h * 60 + m
+        val s = settings.value
+        if (min == s.chargeWindowFrom || holdStart != null) return
+        val reported = st.updatedAtMillis ?: return
+        if (reported <= no.lionflow.app.model.ChargePower.lastStartSentAt() + 15_000L) return
+        settings.update { it.copy(chargeWindowFrom = min) }
+        remote.addLog("charging window start follows the car's scheduled start (%02d:%02d)".format(h, m))
+        if (s.chargeWindowOn) try { no.lionflow.app.work.ChargeWindow.schedule(app()) } catch (_: Exception) { }
+    }
+
     /** Turns "only charge between" on or off, or changes its times, and tells the car when to start. */
     fun setChargeWindow(on: Boolean, from: Int, to: Int) {
         val status = _ui.value.status ?: return
@@ -1059,7 +1077,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (!on && !was.chargeWindowOn) return
         viewModelScope.launch {
             val r = no.lionflow.app.work.ChargeWindow.applyToCar(getApplication())
-            if (r is CommandResult.Failed) toast(no.lionflow.app.ui.l10n.L10n.tr("Couldn't send the charging times to the car") + ": " + r.reason)
+            if (r != null && r !is CommandResult.Failed) holdStart = from to System.currentTimeMillis()
+            if (r is CommandResult.Failed) {
+                // EV Remote: back to what the car has.
+                settings.update { it.copy(chargeWindowOn = was.chargeWindowOn, chargeWindowFrom = was.chargeWindowFrom, chargeWindowTo = was.chargeWindowTo) }
+                toast(no.lionflow.app.ui.l10n.L10n.tr("Couldn't send the charging times to the car") + ": " + r.reason)
+            }
         }
     }
 
@@ -1086,7 +1109,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
         val delayed = no.lionflow.app.model.ChargePower.scheduledStart(st) != null
         runCommand("Scheduled start time", optimistic) { p ->
-            remote.charging(!delayed, h, m, p).also { if (it !is CommandResult.Failed) holdStart = min to System.currentTimeMillis() }
+            remote.charging(!delayed, h, m, p).also { if (it !is CommandResult.Failed) { holdStart = min to System.currentTimeMillis(); settings.update { s2 -> s2.copy(chargeWindowFrom = min) } } }
         }
     }
 
