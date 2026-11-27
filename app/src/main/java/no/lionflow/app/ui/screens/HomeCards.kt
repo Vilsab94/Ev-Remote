@@ -311,7 +311,7 @@ private fun plainRows(st: VehicleStatus, s: AppSettings): List<Pair<String, List
         "Ignition" to st.ignition?.let { tr(it) },
         "Speed" to (if (st.moving || (speed ?: 0.0) > 0.5) "${(speed ?: 0.0).roundToInt()} km/h" else tr("Parked")),
         "Outside" to st.outsideTempC?.let { fmtTemp(it, s) },
-        "Pre-heating" to (if (Caps.climate(st)) onOff(st.preconditioningOn) else null),
+        "Pre-heating" to (if (Caps.climate(st)) onOff(st.preheating) + (st.preheatGuess?.let { " (probably: $it)" } ?: "") else null),
         "Fog lights" to (if (st.raw.optJSONObject("lightingSystem")?.has("fog") == true) onOff(st.fogLightsOn.isNotEmpty()) else null),
         "Privacy mode" to st.privacyState?.let { tr(it) },
     ))

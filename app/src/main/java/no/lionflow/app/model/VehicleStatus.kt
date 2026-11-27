@@ -55,8 +55,11 @@ data class VehicleStatus(
     val fuelTotalRaw: Double? = null,               // the car's lifetime fuel counter, in its own (undocumented) unit
     val positionAtMillis: Long? = null,             // EV Remote: when the position was taken (lastPosition properties.updatedAt)
     val positionSource: String? = null,             // EV Remote: null = from the car; "trip" = end of the last trip; "phone" = phone GPS (route tracking)
+    val preheatGuess: String? = null,               // EV Remote: why pre-heating is probably on although the car reports it off (unplugged), else null
 ) {
     val isCharging: Boolean get() = chargingStatus == "InProgress"
+    /** EV Remote: pre-heating as reported, or probably on (the car reports it off while it heats unplugged). */
+    val preheating: Boolean get() = preconditioningOn || preheatGuess != null
     /** Privacy mode in the car: it blocks remote commands and can hide the position. */
     val privacyOn: Boolean get() = !privacyState.isNullOrBlank() && privacyState != "None"
 

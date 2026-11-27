@@ -84,7 +84,7 @@ class WearService : WearableListenerService() {
                 .put("locked", st.locked ?: JSONObject.NULL)
                 .put("status", tr(when {
                     st.isCharging -> "Charging" + (ChargePower.label(st)?.let { " at $it" } ?: "")
-                    st.preconditioningOn -> "Pre-heating is on"
+                    st.preheating -> "Pre-heating is on"
                     st.plugged -> "Plugged in"
                     else -> ""
                 }))

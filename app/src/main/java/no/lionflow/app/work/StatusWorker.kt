@@ -63,7 +63,7 @@ class StatusWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx
                 notify(1, "Charging complete", "Battery at ${st.batteryPct?.toInt() ?: "?"} %.")
             if (s.notifyChargeStopped && prevCharging == "InProgress" && (st.chargingStatus == "Stopped" || st.chargingStatus == "Failure"))
                 notify(2, "Charging stopped", "Charging was interrupted at ${st.batteryPct?.toInt() ?: "?"} %.")
-            if (s.notifyPreheat && prev.optBoolean("precond") && !st.preconditioningOn)
+            if (s.notifyPreheat && prev.optBoolean("precond") && !st.preheating)
                 notify(3, "Pre-heating finished", "Your car should be warm and ready.")
 
             // Only count as parked if the car isn't moving and hasn't driven since the last check.
@@ -87,7 +87,7 @@ class StatusWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx
 
             app.settings.notifySnapshot = JSONObject()
                 .put("charging", st.chargingStatus ?: "")
-                .put("precond", st.preconditioningOn)
+                .put("precond", st.preheating)
                 .put("unlockedSince", unlockedSince)
                 .put("odo", odo)
                 .put("unlockedNotified", unlockedSince > 0 && (prev.optBoolean("unlockedNotified") || now - unlockedSince > 10 * 60_000))

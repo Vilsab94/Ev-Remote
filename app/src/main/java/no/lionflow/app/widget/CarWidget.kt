@@ -45,7 +45,7 @@ object WidgetData {
             .put("fuel", st.energyType == "Fuel")
             .put("kw", no.lionflow.app.model.ChargePower.label(st) ?: "")
             .put("outside", st.outsideTempC ?: -999.0)
-            .put("precond", st.preconditioningOn)
+            .put("precond", st.preheating)
             .put("carTime", st.updatedAtMillis ?: now)
             .put("fetched", now)
         // Some cars don't report a position; JSON can't hold NaN, so only add real numbers.

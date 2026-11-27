@@ -448,7 +448,7 @@ private fun ClimateTile(modifier: Modifier, vm: AppViewModel, ui: UiState, s: Ap
     val c = LocalLf.current
     val st = ui.status
     val confirm = LocalConfirm.current
-    val on = st?.preconditioningOn == true
+    val on = st?.preheating == true
     LfCard(modifier, radius = 24.dp, padding = androidx.compose.foundation.layout.PaddingValues(16.dp), onClick = { vm.setTab(Tab.Climate) }) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             LfIcon(LfIcons.Thermo, if (on) c.orangeInk else c.text, 22.dp)
@@ -460,6 +460,7 @@ private fun ClimateTile(modifier: Modifier, vm: AppViewModel, ui: UiState, s: Ap
             Text("Outside ${fmtTemp(st?.outsideTempC ?: ui.weather?.tempC, s)}", style = Type.small, color = c.muted)
             nextSchedule(st)?.let { Text("Next: $it", style = Type.tiny, color = c.muted) }
             PreheatLowBatteryNote(vm, st)   // EV Remote
+            if (on) PreheatGuessNote(st)   // EV Remote
         }
         androidx.compose.foundation.layout.Spacer(Modifier.weight(1f, fill = false))
         if (vm.remoteReady) no.lionflow.app.ui.components.PrimaryButton(if (on) "Stop" else "Pre-heat", Modifier.fillMaxWidth(), color = c.orange) {
@@ -802,11 +803,12 @@ fun ClimateSummary(vm: AppViewModel, ui: UiState, s: AppSettings) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("Climate · outside ${fmtTemp(st?.outsideTempC ?: ui.weather?.tempC, s)}", style = Type.small, color = c.muted)
-                Text(if (st?.preconditioningOn == true) "Pre-heating" else "Off", style = Type.stat, color = c.text)
+                Text(if (st?.preheating == true) "Pre-heating" else "Off", style = Type.stat, color = c.text)
+                PreheatGuessNote(st)   // EV Remote
                 nextSchedule(st)?.let { Text("Next schedule: $it", style = Type.tiny, color = c.muted) }
             }
-            if (vm.remoteReady) no.lionflow.app.ui.components.PrimaryButton(if (st?.preconditioningOn == true) "Stop" else "Pre-heat", color = c.orange) {
-                val on = st?.preconditioningOn != true
+            if (vm.remoteReady) no.lionflow.app.ui.components.PrimaryButton(if (st?.preheating == true) "Stop" else "Pre-heat", color = c.orange) {
+                val on = st?.preheating != true
                 confirm(if (on) "Start pre-heating" else "Stop pre-heating") { vm.preconditioning(on) }
             }
         }

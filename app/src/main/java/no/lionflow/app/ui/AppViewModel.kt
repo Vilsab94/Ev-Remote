@@ -959,9 +959,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         preconditioningSend(on)
     }
 
-    private fun preconditioningSend(on: Boolean) = runCommand(if (on) "Pre-heating" else "Stop pre-heating", { holdPrecond = on to System.currentTimeMillis() + 300_000; it.copy(preconditioningOn = on) }) { p ->
+    private fun preconditioningSend(on: Boolean) = runCommand(if (on) "Pre-heating" else "Stop pre-heating", { holdPrecond = on to System.currentTimeMillis() + 300_000; it.copy(preconditioningOn = on, preheatGuess = null) }) { p ->
         val st = _ui.value.status ?: return@runCommand CommandResult.Failed("No status yet")
-        remote.preconditioning(on, st.programsJson(), p)
+        remote.preconditioning(on, st.programsJson(), p).also { if (it !is CommandResult.Failed) no.lionflow.app.model.ChargePower.rememberPrecond(on) }
     }
 
     /** Saves pre-heating schedules to the car (its 4 program slots), keeping pre-heating on/off as it is. */

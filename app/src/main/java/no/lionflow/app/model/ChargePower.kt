@@ -241,10 +241,56 @@ object ChargePower {
         return if (doors.size == st.openDoors.size) st else st.copy(openDoors = doors)
     }
 
+
+    /**
+     * EV Remote: unplugged, the car reports pre-heating as "Disabled" even while it heats (battery drops ~3 kW).
+     * It is taken as probably on when the car is unplugged, parked and awake (reported in the last 15 min) and that
+     * report falls in a schedule's window (from ~25 min before the set time to 10 min after: unplugged the car starts
+     * about 20 min before) or within 30 min after pre-heating was started from EV Remote (and not stopped since).
+     */
+    private fun fixPreheat(st: VehicleStatus): VehicleStatus {
+        if (st.preconditioningOn || st.plugged || st.moving || st.energyType == "Fuel") return st
+        val at = st.updatedAtMillis ?: return st
+        if (System.currentTimeMillis() - at > 15 * 60_000L) return st
+        val why = preheatReason(st, at) ?: return st
+        val p = prefs
+        if (p != null && p.getString(k("preheatGuess"), "") != "$why@${at / 3_600_000L}") {
+            p.edit().putString(k("preheatGuess"), "$why@${at / 3_600_000L}").apply()
+            try { log?.invoke("pre-heating reported off, but probably on: $why, unplugged, car awake") } catch (_: Exception) { }
+        }
+        return st.copy(preheatGuess = why)
+    }
+
+    private fun preheatReason(st: VehicleStatus, at: Long): String? {
+        val p = prefs
+        if (p != null) {
+            val sent = p.getLong(k("precondOnAt"), 0L)
+            if (sent > 0 && at >= sent - 60_000L && at <= sent + 30 * 60_000L) return "started from EV Remote"
+            // Stopped from EV Remote: no guessing for the rest of that schedule window.
+            val off = p.getLong(k("precondOffAt"), 0L)
+            if (off > 0 && at <= off + 40 * 60_000L) return null
+        }
+        val days = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+        val cal = java.util.Calendar.getInstance().apply { timeInMillis = at }
+        val day = (cal.get(java.util.Calendar.DAY_OF_WEEK) + 5) % 7   // Mon = 0
+        val min = cal.get(java.util.Calendar.HOUR_OF_DAY) * 60 + cal.get(java.util.Calendar.MINUTE)
+        for (pr in st.programs.filter { it.enabled }) for (shift in -1..1) {
+            if (days[(day + shift + 7) % 7] !in pr.days) continue
+            val t = shift * 1440 + pr.hour * 60 + pr.minute
+            if (min in (t - 25)..(t + 10)) return "schedule %02d:%02d".format(pr.hour, pr.minute)
+        }
+        return null
+    }
+
+    /** EV Remote: pre-heating started (on) or stopped from EV Remote, for [fixPreheat]. */
+    fun rememberPrecond(on: Boolean) {
+        val now = System.currentTimeMillis()
+        prefs?.edit()?.putLong(k("precondOnAt"), if (on) now else 0L)?.putLong(k("precondOffAt"), if (on) 0L else now)?.apply()
+    }
     fun record(raw: VehicleStatus): VehicleStatus {
         // The level % is always the car's own (upstream 4eb9770/c8703ec dropped fixLevel); EV Remote's battery size
         // and SoH maths (applyBatterySize) is applied to it.
-        val st = applyPendingPrograms(fixRange(applyBatterySize(fixRoof(raw))))
+        val st = fixPreheat(applyPendingPrograms(fixRange(applyBatterySize(fixRoof(raw)))))
         try { ChargeLog.observe(st) } catch (_: Exception) { }
         try { CarTrips.observe(st) } catch (_: Exception) { }
         try { OutsideTemp.record(st) } catch (_: Exception) { }   // EV Remote: temperature per trip

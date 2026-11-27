@@ -243,19 +243,20 @@ fun ClimateScreen(vm: AppViewModel, ui: UiState, s: AppSettings, wide: Boolean) 
         ScreenHeader("Outside ${fmtTemp(st?.outsideTempC ?: ui.weather?.tempC, s)}", "Climate")
         LfCard(padding = PaddingValues(20.dp)) {
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                LfIcon(LfIcons.Fan, if (st?.preconditioningOn == true) c.orangeInk else c.muted, 40.dp)
-                Text(if (st?.preconditioningOn == true) "Pre-heating is on" else "Pre-heating is off", style = Type.stat, color = c.text)
+                LfIcon(LfIcons.Fan, if (st?.preheating == true) c.orangeInk else c.muted, 40.dp)
+                Text(if (st?.preheating == true) "Pre-heating is on" else "Pre-heating is off", style = Type.stat, color = c.text)
+                PreheatGuessNote(st)   // EV Remote
                 if (vm.remoteReady) PrimaryButton(
                     text = when {
                         ui.commandInProgress?.contains("heating") == true -> "Sending…"
-                        st?.preconditioningOn == true -> "Stop pre-heating"
+                        st?.preheating == true -> "Stop pre-heating"
                         else -> "Start pre-heating now"
                     },
                     modifier = Modifier.fillMaxWidth(),
                     color = c.orange,
                     enabled = st != null && ui.commandInProgress == null,
                 ) {
-                    val on = st?.preconditioningOn != true
+                    val on = st?.preheating != true
                     confirm(if (on) "Start pre-heating" else "Stop pre-heating") { vm.preconditioning(on) }
                 }
                 Text("Heats or cools the cabin for a limited time (about 10–30 minutes, depending on the car). Uses grid power when plugged in.", style = Type.tiny, color = c.muted)
@@ -375,5 +376,16 @@ internal fun PreheatLowBatteryNote(vm: AppViewModel, st: no.lionflow.app.model.V
     if (!vm.preheatLowBattery(st)) return
     val c = LocalLf.current
     Text("Not plugged in: the car may refuse to pre-heat below about 50 % battery. Plug in or charge first.",
+        style = Type.tiny, color = c.orangeInk, modifier = modifier)
+}
+
+/** EV Remote: why pre-heating is shown as on although the car reports it off (unplugged). */
+@Composable
+fun PreheatGuessNote(st: no.lionflow.app.model.VehicleStatus?, modifier: Modifier = Modifier) {
+    val why = st?.preheatGuess ?: return
+    val c = LocalLf.current
+    androidx.compose.material3.Text(
+        no.lionflow.app.ui.l10n.L10n.tr("Probably on") + " (" + why + "): " +
+            no.lionflow.app.ui.l10n.L10n.tr("the car reports pre-heating as off while it heats unplugged."),
         style = Type.tiny, color = c.orangeInk, modifier = modifier)
 }
