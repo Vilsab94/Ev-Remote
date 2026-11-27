@@ -44,6 +44,8 @@ Findings from testing LionFlow with this car (Nov 2026):
    delayed), the same time as the charging window start (switch locked while the window is on); "Stop charging" only
    while charging. "immediate" is forgotten when the car reports a time set elsewhere. The window's "From" is always
    the scheduled start time (one value, also when the window is off).
+   "Delayed start" shows what the car does: waiting when plugged in (also set with the car's buttons) → on, charging →
+   off; on while charging stops it until the scheduled time.
 6. ✅ **Done (2026-11-27)** – **Command & error log** saved on the phone (`command_log.txt`, last 500 lines, with date).
 7. Hide (don't delete, to keep upstream merges easy): trip planner, Android Auto entry, Norway
    prices/NOBIL, YouTube screen.

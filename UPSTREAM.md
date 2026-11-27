@@ -121,6 +121,9 @@ customised for an Opel Mokka-e. All credit for the original app goes to its auth
   "Set by charging window", while the window is on). `holdStart` in `applyHolds` keeps the sent time until the car
   reports it. The window's From is always the car's start time: `AppViewModel.syncWindowFrom()` moves it to a time reported
   >15 s after our last /VehCharge (`ChargePower.lastStartSentAt()`); the pencil moves it too, also with the window off.
+  "Delayed start" shows the car's state (`ChargePower.delayedNow()`: plugged + Stopped + start time → on, charging →
+  off, else what was last sent; `learnStartMode()` forgets "immediate" when the car waits >5 min after it);
+  `holdCharging` keeps the asked-for status up to 3 min.
   "Turn off"/`clearScheduledStart` and "Charge now" removed; Charging and Home show "Stop charging" only
   while charging.
 - When merging upstream: keep our README.md, UPSTREAM.md, PLAN.md and .github/workflows/build.yml.
