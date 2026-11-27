@@ -16,6 +16,8 @@ Findings from testing LionFlow with this car (Nov 2026):
    `health.resistance` when `capacity` is missing. SoH: capacity, else resistance – the Mokka-e sends only
    resistance = 93 and an OBD reader confirmed 93 %, so usable = 46 × 0,93 ≈ 42,8 kWh. Shown as
    "93 % · resistance · received <date>". Every status logs "health: capacity=…, resistance=…".
+   The car sometimes sends resistance = 100 (not worked out): a higher SoH is taken only after 60 days
+   ("health ignored: 100 (kept 93)"), so usable doesn't jump between 42,8 and 46 kWh.
    Trips: kWh/100 km is labelled "from battery" (cold: battery heating counts, the car's trip computer leaves it out),
    with the outside temperature per trip; under 3 % battery drop shown as "≈" in grey.
 2. ✅ **Done (2026-11-27, not yet tested on the car)** – **Charge limit (80 %) fails on 11 kW AC**: the car
@@ -37,7 +39,10 @@ Findings from testing LionFlow with this car (Nov 2026):
    → If "already running" (error 1) comes back, switch button to Stop. Stop sends `deactivate`
      (error 4 = wasn't running, harmless). Optionally infer "heating by timer" from: timer window
      (≤45 min before set time), unplugged, car awake, level dropping.
-5. **Scheduled charging start**: allow changing the time (not only turning it off), like myOpel.
+5. ✅ **Done (2026-11-27, not yet tested on the car)** – **Scheduled charging start**: allow changing the time (not only
+   turning it off), like myOpel. → Charging screen: time with a pencil (24 h), "Delayed start" switch (immediate /
+   delayed), the same time as the charging window start (switch locked while the window is on); "Stop charging" only
+   while charging. "immediate" is forgotten when the car reports a time set elsewhere.
 6. ✅ **Done (2026-11-27)** – **Command & error log** saved on the phone (`command_log.txt`, last 500 lines, with date).
 7. Hide (don't delete, to keep upstream merges easy): trip planner, Android Auto entry, Norway
    prices/NOBIL, YouTube screen.

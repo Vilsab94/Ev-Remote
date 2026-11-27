@@ -108,4 +108,17 @@ customised for an Opel Mokka-e. All credit for the original app goes to its auth
 - Error texts use `Brands.current.display`/`.app` instead of a fixed "Peugeot"/"MyPeugeot": `Http.describeHttpError`,
   RemoteControl (`mapCode`, MQTT errors, "Sent to …"), AppViewModel (`NO_REMOTE` is now a getter, session expired,
   servers down, no car), CarWidget refresh texts. UI texts already go through `Brands.apply` in `L10n.tr`.
+- SoH guard (2026-11-27): the Mokka-e sends health.resistance only, sometimes 100 (not worked out) and sometimes 93
+  (real, OBD). `ChargePower.applyBatterySize()` takes a higher value only when the saved one is older than 60 days
+  (`SOH_KEEP_MS`); else logs "health ignored: 100 (kept 93)" (`ChargePower.log`, set in LionFlowApp) and uses the
+  saved SoH, so usable stays 46 × 0.93.
+- Scheduled start (Opel API: only "immediate" or "delayed" + time in /VehCharge): `rememberStartMode(immediate, h, m)`
+  keeps "immediate,H:M,sentMillis"; `scheduledStart()` forgets it when a car report >15 s after the command has another
+  time (set in the car or myOpel). `startTime()` = the car's time in either mode. ChargeWake uses `scheduledStart()`.
+  Charging screen (`ScheduledStartSection` in ChargingClimate.kt): time with a pencil (`LfIcons.Pencil`, 24 h
+  `ClockDialog`, now internal in ChargeLimitCard.kt) → `AppViewModel.setStartTime()` (same mode; with the charging window
+  on it moves the window start via `ChargeWindow.applyToCar`); "Delayed start" switch → `setDelayedStart()` (locked on,
+  "Set by charging window", while the window is on). `holdStart` in `applyHolds` keeps the sent time until the car
+  reports it. "Turn off"/`clearScheduledStart` and "Charge now" removed; Charging and Home show "Stop charging" only
+  while charging.
 - When merging upstream: keep our README.md, UPSTREAM.md, PLAN.md and .github/workflows/build.yml.
