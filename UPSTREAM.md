@@ -6,6 +6,22 @@ customised for an Opel Mokka-e. All credit for the original app goes to its auth
 ## Upstream sync log
 
 - Based on LionFlow `7f58dad011a5` (2026-11-26): "Demo for any kind of car and brand, and speed in Android Auto"
+- Based on LionFlow `7b44e55` (2026-11-27), picked by hand (no merge: upstream moved the app into `Android/`,
+  paths `Android/app/...` → `app/...`). Taken:
+  - 4eb9770 + c8703ec: `fixLevel` removed (battery % is always the car's own), `fixRoof` added (sunroof reported
+    open on cars without one); our `applyBatterySize`/SoH kept in `ChargePower.record()`.
+  - c8703ec: `ChargeLimit.overLimit` gain also counts the report's age (up to 10 %).
+  - 4eb9770: `ChargePower.scheduledStart()`/`rememberStartMode()` – after "Turn off" the scheduled start shows as off
+    (RemoteControl.charging, ChargingClimate, ChargeLimitCard `reachAt` only with our limit on, Home `chargingLine`).
+    EV Remote also uses it in `ChargeWake.plan()`, so no wake-up for a start that was turned off.
+  - 36fdff4: car name "My Peugeot" → "My Opel" etc. on other brands (Settings.kt `withBrandName`/`brandName`).
+  - f075a55: `model/LockHold.kt` + `LockHoldTest`, used in AppViewModel `applyHolds`/`lockCar`.
+  - c8703ec: Updater `result`/`installWithSystem` (Android's installer after 30 s without an answer),
+    `file_paths.xml` `updates/`; currency choice (`ChargeLog.CURRENCIES`, Settings → Units, ChargeLogSection, FuelStatsUi).
+  Not taken: c8703ec StatusWorker wake-ups (our `ChargeWake` does it), the "energy" fallback in VehicleStatus/energyLog,
+  "Outside" from the weather, mild-hybrid texts, `remember(…, carLevel)` "car says"; mph (36fdff4 Root/HomeCards/
+  TripsService), Android Auto (CarInfoScreen), iOS, new languages (Finnish, Danish, l10n.tsv, wear strings),
+  README/PRIVACY.
 
 ## EV Remote changes (kept small so LionFlow updates merge easily)
 
