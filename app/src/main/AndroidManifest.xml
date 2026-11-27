@@ -23,12 +23,15 @@
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
-    <!-- EV Remote: not used (voice search and Android Auto are hidden); also removed if a library adds them -->
+    <!-- EV Remote: voice search is not used; also removed if a library adds it -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove" />
-    <uses-permission android:name="androidx.car.app.NAVIGATION_TEMPLATES" tools:node="remove" />
-    <uses-permission android:name="androidx.car.app.ACCESS_SURFACE" tools:node="remove" />
-    <uses-permission android:name="com.google.android.gms.permission.CAR_SPEED" tools:node="remove" />
-    <uses-permission android:name="com.google.android.gms.permission.CAR_FUEL" tools:node="remove" />
+    <!-- Android Auto: a drawing surface (for YouTube while parked) and the car's speed (to know it's parked).
+         EV Remote: kept: without it route recording stopped starting on its own (most likely Android 12+ allows the
+         background location service only while Android Auto is bound to LionFlowCarService). -->
+    <uses-permission android:name="androidx.car.app.NAVIGATION_TEMPLATES" />
+    <uses-permission android:name="androidx.car.app.ACCESS_SURFACE" />
+    <uses-permission android:name="com.google.android.gms.permission.CAR_SPEED" />
+    <uses-permission android:name="com.google.android.gms.permission.CAR_FUEL" />
 
     <application
         android:name=".LionFlowApp"
@@ -104,7 +107,28 @@
             android:name=".update.InstallResultReceiver"
             android:exported="false" />
 
-        <!-- EV Remote: Android Auto (LionFlowCarService) is not registered; the code in car/ is kept for upstream merges -->
+        <!-- Android Auto -->
+        <meta-data
+            android:name="com.google.android.gms.car.application"
+            android:resource="@xml/automotive_app_desc" />
+        <meta-data
+            android:name="androidx.car.app.minCarApiLevel"
+            android:value="5" />
+        <meta-data
+            android:name="com.google.android.gms.car.notification.SmallIcon"
+            android:resource="@drawable/ic_notification" />
+
+        <!-- LionFlow in Android Auto: its own drawn screens + YouTube while parked. Navigation category only to get a drawing surface. -->
+        <service
+            android:name=".car.LionFlowCarService"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="androidx.car.app.CarAppService" />
+                <category android:name="androidx.car.app.category.NAVIGATION" />
+            </intent-filter>
+        </service>
 
 
         <!-- Answers LionFlow on a Wear OS watch (same package + signing key only) -->
