@@ -38,8 +38,8 @@ class CarBluetoothReceiver : BroadcastReceiver() {
             else intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
         if (dev?.address != s.routeBtAddr) return
         when (intent.action) {
-            BluetoothDevice.ACTION_ACL_CONNECTED -> RouteService.start(ctx)
-            BluetoothDevice.ACTION_ACL_DISCONNECTED -> RouteService.stop(ctx)
+            BluetoothDevice.ACTION_ACL_CONNECTED -> { RouteService.log(ctx, "route: car Bluetooth connected"); RouteService.start(ctx) }
+            BluetoothDevice.ACTION_ACL_DISCONNECTED -> { RouteService.log(ctx, "route: car Bluetooth disconnected"); RouteService.stop(ctx) }
         }
     }
 }
@@ -60,12 +60,14 @@ class RouteService : Service(), LocationListener {
         try {
             if (Build.VERSION.SDK_INT >= 29) startForeground(ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION) else startForeground(ID, n)
         } catch (e: Exception) {
+            log(this, "route: not recorded, Android refused the recording service (${e.javaClass.simpleName})")
             stopSelf(); return START_NOT_STICKY
         }
-        if (!hasLocation(this)) { stopSelf(); return START_NOT_STICKY }
+        if (!hasLocation(this)) { log(this, "route: not recorded, no location permission"); stopSelf(); return START_NOT_STICKY }
         startMillis = System.currentTimeMillis()
         file = File(Routes.dir(this), "rec-$startMillis.part").also { it.writeText("") }
         listen()
+        log(this, "route: recording" + if (hasBackgroundLocation(this)) "" else " (location not allowed all the time: may stop when the screen is off)")
         return START_STICKY
     }
 
@@ -98,7 +100,8 @@ class RouteService : Service(), LocationListener {
         val km = Routes.distanceKm(pts)
         if (pts.size >= 3 && km >= 0.3) {
             f.renameTo(File(Routes.dir(this), "${pts.first().third}-${pts.last().third}-${String.format(java.util.Locale.US, "%.2f", km)}.csv"))
-        } else f.delete()
+            log(this, "route: saved, ${pts.size} points, " + String.format(java.util.Locale.US, "%.1f km", km))
+        } else { f.delete(); log(this, "route: not kept, ${pts.size} points, " + String.format(java.util.Locale.US, "%.1f km", km) + " (under 3 points or 0.3 km)") }
     }
 
     override fun onDestroy() {
@@ -132,11 +135,12 @@ class RouteService : Service(), LocationListener {
             ContextCompat.checkSelfPermission(ctx, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
 
         fun start(ctx: Context) {
-            if (!hasLocation(ctx)) return
+            if (!hasLocation(ctx)) { log(ctx, "route: not recorded, no location permission"); return }
             try {
                 ContextCompat.startForegroundService(ctx, Intent(ctx, RouteService::class.java))
             } catch (e: Exception) {
                 // Android may refuse to start from the background; let the user start it with one tap.
+                log(ctx, "route: Android refused to start recording in the background (${e.javaClass.simpleName}), tap the notification")
                 askToStart(ctx)
             }
         }
@@ -162,5 +166,10 @@ class RouteService : Service(), LocationListener {
         }
 
         const val ACTION_START_FROM_TAP = "no.lionflow.app.ROUTE_START_TAP"
+
+        /** EV Remote: route recording steps in the command & error log (never positions). */
+        fun log(ctx: Context, line: String) {
+            try { (ctx.applicationContext as? LionFlowApp)?.remote?.addLog(line) } catch (_: Exception) { }
+        }
     }
 }
