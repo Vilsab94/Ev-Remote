@@ -152,17 +152,36 @@ object ChargePower {
     fun history(): List<String> = prefs?.getString(k("hist"), "")?.split("\n")?.filter { it.isNotBlank() }.orEmpty()
 
     /**
-     * The car reports its scheduled start time even when it is set to charge right away (the API has no on/off for it),
-     * so LionFlow remembers what it last sent. Null when there is no scheduled start, or LionFlow turned it off.
+     * The car reports its scheduled start time even when it is set to charge right away (the API has no on/off for it,
+     * only "immediate" or "delayed" + a time), so LionFlow remembers what it last sent. Null when there is no
+     * scheduled start, or it was set to "immediate".
+     *
+     * EV Remote: with "immediate" the time that was sent is kept too ("immediate,H:M,sentMillis"). When a later car
+     * report (more than 15 s after the command) has another time, it was set in the car or in myOpel: "immediate" is
+     * forgotten, so the start shows again and ChargeWake wakes the car for it.
      */
     fun scheduledStart(st: VehicleStatus): Pair<Int, Int>? {
         val h = st.nextDelayedHour ?: return null
-        if (prefs?.getString(k("startMode"), "") == "immediate") return null
-        return h to (st.nextDelayedMinute ?: 0)
+        val m = st.nextDelayedMinute ?: 0
+        val p = prefs ?: return h to m
+        val mode = p.getString(k("startMode"), "").orEmpty()
+        if (!mode.startsWith("immediate")) return h to m
+        val parts = mode.split(",")
+        val sent = parts.getOrNull(1)
+        val sentAt = parts.getOrNull(2)?.toLongOrNull() ?: 0L
+        val reportedAt = st.updatedAtMillis ?: 0L
+        if (sent == null || sent == "$h:$m" || reportedAt <= sentAt + 15_000L) return null
+        p.edit().putString(k("startMode"), "delayed").apply()
+        try { log?.invoke("scheduled start changed outside EV Remote (now %02d:%02d): shown again".format(h, m)) } catch (_: Exception) { }
+        return h to m
     }
 
-    fun rememberStartMode(immediate: Boolean) {
-        prefs?.edit()?.putString(k("startMode"), if (immediate) "immediate" else "delayed")?.apply()
+    /** The time the car has for its delayed start, whether or not it is in use; null when the car reports none. */
+    fun startTime(st: VehicleStatus): Pair<Int, Int>? = st.nextDelayedHour?.let { it to (st.nextDelayedMinute ?: 0) }
+
+    /** Called after /VehCharge was accepted: [hour]:[minute] is the time sent with it. */
+    fun rememberStartMode(immediate: Boolean, hour: Int, minute: Int) {
+        prefs?.edit()?.putString(k("startMode"), if (immediate) "immediate,$hour:$minute,${System.currentTimeMillis()}" else "delayed")?.apply()
     }
 
     private fun remember(p: android.content.SharedPreferences, st: VehicleStatus) {
