@@ -48,6 +48,27 @@ customised for an Opel Mokka-e. All credit for the original app goes to its auth
   history and car-trip snapshots saved with older maths are dropped once (`evCapV3`). History lines show usable/soh.
 - Overpass: removed the maps.mail.ru mirror (Services.kt `OsmChargers.ENDPOINTS`); overpass-api.de,
   overpass.private.coffee, overpass.kumi.systems remain.
+- SoH (2026-11-27): `VehicleStatus.sohOf()` – energies[] Electric → extension.electric.battery.health.capacity,
+  else energy[] → battery.health.capacity; never resistance (upstream falls back to it). `healthLog()` line logged
+  on every `StellantisApi.status()`. Saved with date (`ChargePower.sohAtMillis()`, keys `sohAt`/`sohAt_any`);
+  `healthText()` in HomeCards.kt shows "93 % · received <date>" (Charging screen, All car data). Settings line
+  "46 kWh × 93 % = 42,8 kWh".
+- Trips: `model/OutsideTemp.kt` keeps environment.air.temp with its time (from `ChargePower.record()`); trip list
+  shows the temperature nearest each trip start and the average in the header; kWh/100 km labelled
+  "from battery", "≈" + lighter grey when the battery dropped < 3 % (TripsService.kt).
+- wayPoints: `Trip.wayPointsHref` (_links.wayPoints.href); `StellantisApi.wayPoints()` (token only to the API host);
+  `model/WayPoints.kt` parses/saves points (filesDir/waypoints) and the debug text for All car data;
+  `AppViewModel.tripWayPoints()` / `loadNewestWayPoints()`; `withFallbackPosition()` uses the newest trip's last
+  way point at stoppedAt unless the phone's GPS point is newer. TripDetail draws the route from way points.
+- Charging wake-ups: `work/ChargeWake.kt` (`plan()` after every status from AppViewModel and StatusWorker; exact alarm →
+  `ChargeWakeReceiver` → expedited `ChargeWakeWorker`; `Waker.wakeAndWait()`). StatusWorker's own 10/4-min
+  follow-up only runs without remote control. Manifest: SCHEDULE_EXACT_ALARM, REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+  FOREGROUND_SERVICE_DATA_SYNC, the receiver, and WorkManager's SystemForegroundService with type dataSync (expedited
+  work on Android 8–11). Battery optimization dialog once (Root.kt, `askedBatteryOpt`).
+- Command log: `RemoteControl.logFile` (filesDir/command_log.txt, `LOG_MAX` = 500 lines, "dd.MM HH:mm:ss").
+- Pre-heat: `PreheatLowBatteryNote()` (ChargingClimate.kt) on the Home climate tile, Climate screen and
+  PreheatSchedules; `AppViewModel.preheatLowBattery()` adds the reason to a failed Pre-heat.
+- 12 V: Car data card (HomeCards.kt) warns when `battery.voltage` as % is below 60.
 - Logo: lightning bolt (#F5C400, outline #1A1A1A) on white – `ic_lion_foreground.xml`,
   `ic_lion_mono.xml`, `ic_notification.xml`, `ic_w_lion.xml`, `LionLogo()` in Components.kt
   (file/function names kept). `launcher_bg` = white.
