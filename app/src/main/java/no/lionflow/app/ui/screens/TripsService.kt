@@ -26,6 +26,7 @@ import no.lionflow.app.ui.l10n.Text
 import no.lionflow.app.ui.l10n.tr
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -284,7 +285,11 @@ private fun TripDetail(vm: AppViewModel, trip: no.lionflow.app.model.Trip?, rout
             no.lionflow.app.model.OutsideTemp.at(trip?.startMillis)?.let { temp ->
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { tile(Modifier.weight(1f), "Outside temperature", no.lionflow.app.ui.fmtTemp(temp, s)) }
             }
-            val energy = trip?.kwh?.takeIf { !mildHybrid && it > 0 }?.let { String.format(Locale.US, "%.1f kWh", it) }
+            // EV Remote: kWh and the battery drop in %, the same numbers as the trip list.
+            val carStatus = vm.ui.collectAsState().value.status
+            val usedKwh = trip?.takeIf { !mildHybrid }?.let { t -> t.kwh?.takeIf { it > 0 } ?: t.avgKwhPer100?.let { it * t.distanceKm / 100 } }
+            val batteryKwh = carStatus?.let { no.lionflow.app.model.ChargePower.usableKwh(it) }?.takeIf { it > 0 }
+            val energy = usedKwh?.let { u -> String.format(Locale.US, "%.1f kWh", u) + (batteryKwh?.let { b -> String.format(Locale.US, " · −%.0f %%", u / b * 100) } ?: "") }
             val fuel = trip?.liters?.let { String.format(Locale.US, "%.1f l", it) }
             val fuelCost = trip?.liters?.takeIf { s.fuelPrice > 0 }?.let { "≈ " + fuelMoney(it * s.fuelPrice, no.lionflow.app.model.ChargeLog.places.value.currency) }
             if (energy != null || fuel != null) Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
