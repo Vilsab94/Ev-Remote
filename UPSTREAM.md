@@ -138,6 +138,8 @@ customised for an Opel Mokka-e. All credit for the original app goes to its auth
   `VehicleStatus.preheatGuess` (`preheating` = reported or guessed) when unplugged, parked, reported in the last 15 min
   and in a schedule window (−25…+10 min) or ≤30 min after a pre-heat from EV Remote (`rememberPrecond`, not after a
   stop). UI, widget, watch and the finished notification use `preheating`; schedule saves still send the reported value.
+  `AppViewModel.preheatAnswer()`: /ThermalPrecond error 1 on Pre-heating ("already running") → shown on (holdPrecond,
+  `rememberPrecond(true)`), so the button becomes Stop; error 4 on Stop ("wasn't running") → shown off. Not a failure.
   "Turn off"/`clearScheduledStart` and "Charge now" removed; Charging and Home show "Stop charging" only
   while charging.
 - When merging upstream: keep our README.md, UPSTREAM.md, PLAN.md and .github/workflows/build.yml.

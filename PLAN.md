@@ -35,8 +35,9 @@ Findings from testing LionFlow with this car (Nov 2026):
      from them when the phone has none. Log: "wayPoints: HTTP <code>, <N> points (try n/5)"; failed or empty
      answers are tried again in the background (15 min, 5 times per trip); opening a trip always asks again.
      All car data shows the position's source. Route recording on the phone logs each step ("route: …").
-4. ✅ **Partly done (2026-11-27, not yet tested on the car)** – shown as "probably on" when unplugged, awake and in a
-   schedule window or after a pre-heat from EV Remote (see UPSTREAM.md). The Stop switch on error 1 is not done.
+4. ✅ **Done (2026-11-27, not yet tested on the car)** – shown as "probably on" when unplugged, awake and in a
+   schedule window or after a pre-heat from EV Remote (see UPSTREAM.md). Error 1 ("already running") shows it as on
+   and the button becomes Stop; error 4 on Stop ("wasn't running") shows it as off.
    **Pre-heating by timer not shown when unplugged**: `preconditioning.airConditioning.status`
    stays `Disabled` while the car heats (battery drops ~3 kW, car awake). Plugged in it shows Enabled.
    → If "already running" (error 1) comes back, switch button to Stop. Stop sends `deactivate`
