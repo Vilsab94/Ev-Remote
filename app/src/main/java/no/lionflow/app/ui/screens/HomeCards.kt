@@ -238,6 +238,10 @@ private fun battery12(st: VehicleStatus): String? {
     return if (v > 30) "${v.roundToInt()} %" else String.format(Locale.US, "%.1f V", v)
 }
 
+/** EV Remote: the 12 V indicator when the car gives it as a level (%), else null. */
+private fun battery12Pct(st: VehicleStatus): Double? =
+    st.raw.optJSONObject("battery")?.takeIf { it.has("voltage") && !it.isNull("voltage") }?.optDouble("voltage")?.takeIf { !it.isNaN() && it > 30 && it <= 100 }
+
 /** A few of the car's numbers, and the way in to all of them. */
 @Composable
 internal fun CarDataCard(vm: AppViewModel, ui: UiState, s: AppSettings) {
@@ -267,6 +271,8 @@ internal fun CarDataCard(vm: AppViewModel, ui: UiState, s: AppSettings) {
                 }
             }
         }
+        // EV Remote: a low 12 V battery is what the car's "energy saving mode" protects; frequent wake-ups drain it.
+        if ((battery12Pct(st) ?: 100.0) < 60) Text("12 V battery low – avoid waking the car often", style = Type.tiny, color = c.orangeInk)
     }
     if (open) CarDataSheet(vm, ui, s) { open = false }
 }
