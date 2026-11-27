@@ -78,7 +78,10 @@ customised for an Opel Mokka-e. All credit for the original app goes to its auth
   `AppViewModel.tripWayPoints()` / `loadNewestWayPoints()`; `withFallbackPosition()` uses the newest trip's last
   way point at stoppedAt unless the phone's GPS point is newer; until the newest trip's points arrive, the newest
   trip with saved points. A failed answer (5xx, error, 0 points) is not saved: `WayPoints.mayTry/noteTry` ask again
-  when trips load, every 15 min at most, 5 tries per trip (`wpTry_<id>`). TripDetail draws the route from way points.
+  when trips load, every 15 min at most, 5 tries per trip (`wpTry_<id>`). TripDetail draws the route from way points
+  and always asks again when opened (`tripWayPoints(t, userAsked = true)`); points for a newer trip move the car position.
+- Route recording (`route/RouteService.kt`): Bluetooth connect/disconnect, start, refusal, missing permission and
+  saved/not kept routes go to the command & error log via `RouteService.log()` (no positions).
   All car data → Position → Source: lastPosition / trip <date> / phone GPS.
 - Charging wake-ups: `work/ChargeWake.kt` (`plan()` after every status from AppViewModel and StatusWorker; exact alarm →
   `ChargeWakeReceiver` → expedited `ChargeWakeWorker`; `Waker.wakeAndWait()`). StatusWorker's own 10/4-min

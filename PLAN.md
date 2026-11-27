@@ -33,7 +33,8 @@ Findings from testing LionFlow with this car (Nov 2026):
    → Trips have `_links.wayPoints`: the newest trip's way points are fetched and saved; the last one is the car
      position (at stoppedAt, "from the last trip"); a newer phone GPS point wins. Trip details draw the route
      from them when the phone has none. Log: "wayPoints: HTTP <code>, <N> points (try n/5)"; failed or empty
-     answers are tried again (15 min, 5 times per trip). All car data shows the position's source.
+     answers are tried again in the background (15 min, 5 times per trip); opening a trip always asks again.
+     All car data shows the position's source. Route recording on the phone logs each step ("route: …").
 4. ✅ **Partly done (2026-11-27, not yet tested on the car)** – shown as "probably on" when unplugged, awake and in a
    schedule window or after a pre-heat from EV Remote (see UPSTREAM.md). The Stop switch on error 1 is not done.
    **Pre-heating by timer not shown when unplugged**: `preconditioning.airConditioning.status`
