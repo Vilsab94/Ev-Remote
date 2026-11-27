@@ -13,9 +13,9 @@ Findings from testing LionFlow with this car (Nov 2026):
      The "Battery size" setting must override server residual/capacity everywhere.
    Sample: 28 km trip, car 17.1 kWh/100, LionFlow 10.0 kWh/100 (−9 %, 2.8 kWh).
    2026-11-27: EV Remote logged soh=null while LionFlow showed 93 % – LionFlow falls back to
-   `health.resistance` when `capacity` is missing. SoH is now read from energies[] → extension.electric.battery
-   .health.capacity, else energy[] → battery.health.capacity; never resistance. Every status logs
-   "health: capacity=…, resistance=…" to confirm which field the car sends. SoH is saved with its date.
+   `health.resistance` when `capacity` is missing. SoH: capacity, else resistance – the Mokka-e sends only
+   resistance = 93 and an OBD reader confirmed 93 %, so usable = 46 × 0,93 ≈ 42,8 kWh. Shown as
+   "93 % · resistance · received <date>". Every status logs "health: capacity=…, resistance=…".
    Trips: kWh/100 km is labelled "from battery" (cold: battery heating counts, the car's trip computer leaves it out),
    with the outside temperature per trip; under 3 % battery drop shown as "≈" in grey.
 2. ✅ **Done (2026-11-27, not yet tested on the car)** – **Charge limit (80 %) fails on 11 kW AC**: the car
@@ -27,10 +27,11 @@ Findings from testing LionFlow with this car (Nov 2026):
 3. ✅ **Done (2026-11-26/27, not yet tested on the car)** – **Car position missing**: status has no `lastPosition`
    at all (privacy state None).
    → Also call `/connectedcar/v4/user/vehicles/{id}/lastPosition` and use it.
-   Result on the Mokka-e: lastPosition answers **HTTP 404** → remembered, not asked again.
+   Result on the Mokka-e: lastPosition answers **HTTP 404** → asked again only after a new trip or 24 h.
    → Trips have `_links.wayPoints`: the newest trip's way points are fetched and saved; the last one is the car
      position (at stoppedAt, "from the last trip"); a newer phone GPS point wins. Trip details draw the route
-     from them when the phone has none. Log: "wayPoints: HTTP <code>, <N> points".
+     from them when the phone has none. Log: "wayPoints: HTTP <code>, <N> points (try n/5)"; failed or empty
+     answers are tried again (15 min, 5 times per trip). All car data shows the position's source.
 4. **Pre-heating by timer not shown when unplugged**: `preconditioning.airConditioning.status`
    stays `Disabled` while the car heats (battery drops ~3 kW, car awake). Plugged in it shows Enabled.
    → If "already running" (error 1) comes back, switch button to Stop. Stop sends `deactivate`

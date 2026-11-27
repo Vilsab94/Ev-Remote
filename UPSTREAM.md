@@ -34,7 +34,7 @@ customised for an Opel Mokka-e. All credit for the original app goes to its auth
 - Battery size (PLAN.md item 1): `AppSettings.batteryKwh` = usable capacity of the NEW battery, default
   `DEFAULT_BATTERY_KWH` = 46 (Settings.kt, pref key `batteryNewKwh`; no "automatic" any more).
   Usable now = new × SoH: `ChargePower.userKwh()`. SoH comes only from `battery.health.capacity`
-  (`VehicleStatus.batteryHealthPct`, "resistance" no longer used); the last one is saved (`soh` per VIN) and used
+  (`VehicleStatus.batteryHealthPct`, later: capacity, else resistance – see SoH below); the last one is saved (`soh` per VIN) and used
   when the car leaves it out; 100 % until one has been received. `ChargePower.applyBatterySize()` in `record()`
   replaces the server's `residualKwh`/`capacityKwh` with level % × usable for electric cars and fills a missing
   SoH from the saved one, so charging kW, time-to-limit estimates (`usableKwh()`), the charge log and trips
@@ -51,8 +51,8 @@ customised for an Opel Mokka-e. All credit for the original app goes to its auth
   (MapScreen.kt) show "· updated 2 h ago". "All car data" raw text lists the lastPosition answer separately.
   The command & error log gets "lastPosition: HTTP <code>" without coordinates (`StellantisApi.log`, set in
   LionFlowApp.kt; logged when the result changes, else at most every 30 min).
-  A 404 (`ApiException.noData`) is remembered per car (`ev_remote` prefs, `lastPos404_<id>`) and the request is
-  not sent again. Fallback position (`AppViewModel.withFallbackPosition()`, applied after status, trips and
+  A 404 (`ApiException.noData`) is remembered per car (`ev_remote` prefs, `lastPos404_<id>` = "millis,odometer") and the
+  request is sent again only after a new trip (odometer higher) or 24 h; a 200 clears it. Fallback position (`AppViewModel.withFallbackPosition()`, applied after status, trips and
   routes load): end of the newest trip with coordinates (`Trip.endLat/endLon`, read by `Trip.latLonOf()` from
   `Trip.END_KEYS`: endPosition, stopPosition, arrival… as GeoJSON or lat/lon), else the last point of the newest
   phone route (route tracking). `VehicleStatus.positionSource` = "trip" / "phone"; `positionAge()` in HomeCards.kt
@@ -65,9 +65,10 @@ customised for an Opel Mokka-e. All credit for the original app goes to its auth
 - Overpass: removed the maps.mail.ru mirror (Services.kt `OsmChargers.ENDPOINTS`); overpass-api.de,
   overpass.private.coffee, overpass.kumi.systems remain.
 - SoH (2026-11-27): `VehicleStatus.sohOf()` – energies[] Electric → extension.electric.battery.health.capacity,
-  else energy[] → battery.health.capacity; never resistance (upstream falls back to it). `healthLog()` line logged
+  else energy[] → battery.health.capacity; if no capacity, health.resistance (both places, `sohSourceOf()`; the Mokka-e
+  sends only resistance = 93, an OBD reader confirmed 93 %). Source saved (`ChargePower.sohSource()`, `sohSrc`). `healthLog()` line logged
   on every `StellantisApi.status()`. Saved with date (`ChargePower.sohAtMillis()`, keys `sohAt`/`sohAt_any`);
-  `healthText()` in HomeCards.kt shows "93 % · received <date>" (Charging screen, All car data). Settings line
+  `healthText()` in HomeCards.kt shows "93 % · resistance · received <date>" (Charging screen, All car data). Settings line
   "46 kWh × 93 % = 42,8 kWh".
 - Trips: `model/OutsideTemp.kt` keeps environment.air.temp with its time (from `ChargePower.record()`); trip list
   shows the temperature nearest each trip start and the average in the header; kWh/100 km labelled
@@ -75,7 +76,10 @@ customised for an Opel Mokka-e. All credit for the original app goes to its auth
 - wayPoints: `Trip.wayPointsHref` (_links.wayPoints.href); `StellantisApi.wayPoints()` (token only to the API host);
   `model/WayPoints.kt` parses/saves points (filesDir/waypoints) and the debug text for All car data;
   `AppViewModel.tripWayPoints()` / `loadNewestWayPoints()`; `withFallbackPosition()` uses the newest trip's last
-  way point at stoppedAt unless the phone's GPS point is newer. TripDetail draws the route from way points.
+  way point at stoppedAt unless the phone's GPS point is newer; until the newest trip's points arrive, the newest
+  trip with saved points. A failed answer (5xx, error, 0 points) is not saved: `WayPoints.mayTry/noteTry` ask again
+  when trips load, every 15 min at most, 5 tries per trip (`wpTry_<id>`). TripDetail draws the route from way points.
+  All car data → Position → Source: lastPosition / trip <date> / phone GPS.
 - Charging wake-ups: `work/ChargeWake.kt` (`plan()` after every status from AppViewModel and StatusWorker; exact alarm →
   `ChargeWakeReceiver` → expedited `ChargeWakeWorker`; `Waker.wakeAndWait()`). StatusWorker's own 10/4-min
   follow-up only runs without remote control. Manifest: SCHEDULE_EXACT_ALARM, REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
