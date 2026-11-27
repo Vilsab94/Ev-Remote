@@ -1096,6 +1096,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (!Caps.battery(st) || settings.value.chargeWindowOn) return
         val (h, m) = no.lionflow.app.model.ChargePower.startTime(st) ?: (1 to 0)
         runCommand(if (on) "Delayed start on" else "Delayed start off", { it.copy(nextDelayedHour = h, nextDelayedMinute = m) }) { p ->
+            // As "Charge now" did: charging past the car's limit needs the car set to 100 % first.
+            val s = settings.value
+            if (!on && st.plugged && s.chargeLimitOn && s.chargeForce && st.chargeType != "Full") {
+                val r = remote.chargeLimit(false)
+                remote.addLog("delayed start off: set the car to 100 % first → ${if (r is CommandResult.Failed) r.reason else "sent"}")
+            }
             remote.charging(!on, h, m, p)
         }
     }

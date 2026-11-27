@@ -98,20 +98,17 @@ fun ChargingScreen(vm: AppViewModel, ui: UiState, s: AppSettings, wide: Boolean)
             DetailRow("Battery health", healthText(st) ?: "—")
             EstimatedHealth(s, st)
         }
-        if (vm.remoteReady) PrimaryButton(
-            text = when {
-                ui.commandInProgress?.contains("harg") == true -> "Sending…"
-                st?.isCharging == true -> "Stop charging"
-                else -> "Charge now"
-            },
+        // EV Remote: only "Stop charging" while it charges (sends delayed with the scheduled start time); to charge
+        // now, turn "Delayed start" off.
+        if (vm.remoteReady && st?.isCharging == true) PrimaryButton(
+            text = if (ui.commandInProgress == "Stop charging") (ui.commandProgress ?: "Sending…") else "Stop charging",
             modifier = Modifier.fillMaxWidth(),
-            enabled = st?.plugged == true && ui.commandInProgress == null,
+            enabled = ui.commandInProgress == null,
         ) {
-            val start = st?.isCharging != true
-            confirm(if (start) "Start charging now" else "Stop charging") { vm.charging(start) }
+            confirm("Stop charging") { vm.charging(false) }
         }
         Text(
-            "Charging power is worked out by EV Remote (the car only reports range per hour): measured from the energy added between two car reports, or estimated from the time left until then. Scheduled start time is set in the car or in the MyPeugeot app; “Stop charging” works by turning the scheduled start on (the car then waits for that time). “Turn off” beside it lets the car charge as soon as it is plugged in again.",
+            "Charging power is worked out by EV Remote (the car only reports range per hour): measured from the energy added between two car reports, or estimated from the time left until then. The car only knows \"charge now\" or \"wait for the scheduled start\": “Delayed start” switches between them, and “Stop charging” turns it on (the car then waits for that time).",
             style = Type.tiny, color = c.muted,
         )
         if (vm.remoteReady) ChargeLimitCard(vm, ui, s) else RemoteSetupHint(vm)

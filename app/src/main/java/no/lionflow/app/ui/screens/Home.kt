@@ -786,9 +786,9 @@ fun ChargingSummary(vm: AppViewModel, ui: UiState, s: AppSettings) {
             Text("Last: " + java.text.SimpleDateFormat("EEE d MMM", no.lionflow.app.ui.l10n.L10n.locale).format(java.util.Date(last.start)) +
                 " · ${String.format(java.util.Locale.US, "%.1f", last.kwh)} kWh · ${m.label}", style = Type.tiny, color = c.muted)
         }
-        if (vm.remoteReady) no.lionflow.app.ui.components.PrimaryButton(if (st?.isCharging == true) "Stop charging" else "Charge now", Modifier.fillMaxWidth(), enabled = st?.plugged == true) {
-            val start = st?.isCharging != true
-            confirm(if (start) "Start charging" else "Stop charging") { vm.charging(start) }
+        // EV Remote: only "Stop charging" while it charges; charging now is the "Delayed start" switch on the Charging screen.
+        if (vm.remoteReady && st?.isCharging == true) no.lionflow.app.ui.components.PrimaryButton("Stop charging", Modifier.fillMaxWidth(), enabled = ui.commandInProgress == null) {
+            confirm("Stop charging") { vm.charging(false) }
         }
     }
 }
