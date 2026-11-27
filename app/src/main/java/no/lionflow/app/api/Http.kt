@@ -41,7 +41,7 @@ object Http {
     /** "Peugeot server error 503 (temporarily unavailable): <the server's own message>" */
     fun describeHttpError(code: Int, body: String, host: String): String {
         val who = when {
-            host.contains("psa") || host.contains("mpsa") || host.contains("stellantis") || host.contains("peugeot") -> "Peugeot"
+            host.contains("psa") || host.contains("mpsa") || host.contains("stellantis") || host.contains("peugeot") -> no.lionflow.app.model.Brands.current.display
             host.contains("met.no") -> "MET weather"
             host.contains("nobil") -> "NOBIL"
             else -> host

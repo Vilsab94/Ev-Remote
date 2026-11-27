@@ -273,11 +273,11 @@ class WidgetRefreshWorker(ctx: Context, params: WorkerParameters) : CoroutineWor
         return coroutineScope {
             val explainer = launch {
                 delay(2_000)
-                WidgetData.setRefresh(ctx, true, "Still loading — Peugeot's servers are answering slowly")
+                WidgetData.setRefresh(ctx, true, "Still loading — ${no.lionflow.app.model.Brands.current.display}'s servers are answering slowly")
                 delay(6_000)
-                WidgetData.setRefresh(ctx, true, "Taking longer than usual — weak signal or Peugeot is busy")
+                WidgetData.setRefresh(ctx, true, "Taking longer than usual — weak signal or ${no.lionflow.app.model.Brands.current.display} is busy")
                 delay(12_000)
-                WidgetData.setRefresh(ctx, true, "Almost there — Peugeot sometimes needs up to 30 seconds")
+                WidgetData.setRefresh(ctx, true, "Almost there — ${no.lionflow.app.model.Brands.current.display} sometimes needs up to 30 seconds")
             }
             try {
                 // Show what the servers already know straight away; only wake the car if that data is old.
@@ -295,16 +295,16 @@ class WidgetRefreshWorker(ctx: Context, params: WorkerParameters) : CoroutineWor
                 }
             } catch (e: AuthExpiredException) {
                 explainer.cancel()
-                WidgetData.setRefresh(ctx, false, "Signed out by Peugeot — open EV Remote to sign in again")
+                WidgetData.setRefresh(ctx, false, "Signed out by ${no.lionflow.app.model.Brands.current.display} — open EV Remote to sign in again")
             } catch (e: no.lionflow.app.api.ApiException) {
                 explainer.cancel()
-                WidgetData.setRefresh(ctx, false, if (e.noData) "No live status for this car" else "Peugeot didn't answer — tap ↻ to try again")
+                WidgetData.setRefresh(ctx, false, if (e.noData) "No live status for this car" else "${no.lionflow.app.model.Brands.current.display} didn't answer — tap ↻ to try again")
             } catch (e: IOException) {
                 explainer.cancel()
                 WidgetData.setRefresh(ctx, false, "No connection — tap ↻ to try again")
             } catch (e: Exception) {
                 explainer.cancel()
-                WidgetData.setRefresh(ctx, false, "Peugeot didn't answer — tap ↻ to try again")
+                WidgetData.setRefresh(ctx, false, "${no.lionflow.app.model.Brands.current.display} didn't answer — tap ↻ to try again")
             }
             Result.success()
         }

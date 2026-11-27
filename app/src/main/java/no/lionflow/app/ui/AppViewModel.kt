@@ -515,7 +515,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 v?.let { no.lionflow.app.model.ChargeLog.setVin(it.vin); no.lionflow.app.model.ChargePower.setVin(it.vin) }
                 _ui.update { it.copy(vehicle = v, vehicles = all, signingIn = false, phase = Phase.SetupRemote, photoPath = v?.vin?.let { vin -> settings.photoFor(vin) }) }
                 if (v == null) toast(if (none) "Signed in, but ${no.lionflow.app.model.Brands.current.display} says no car is available on this account for the country you chose. If the car shows in ${no.lionflow.app.model.Brands.current.app}, check that the country matches the one in that app. Some newer cars can't be reached by other apps yet."
-                    else "No car found on this account — add it in the MyPeugeot app first")
+                    else "No car found on this account — add it in the ${no.lionflow.app.model.Brands.current.app} app first")
             } catch (e: Exception) {
                 _ui.update { it.copy(signingIn = false) }
                 toast("Sign-in failed — ${no.lionflow.app.api.Http.describe(e)}")
@@ -819,7 +819,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             } catch (e: AuthExpiredException) {
                 if (profile != api.profile) return@launch
                 _ui.update { it.copy(refreshing = false) }
-                toast("Your Peugeot session expired — please sign in again")
+                toast("Your ${no.lionflow.app.model.Brands.current.display} session expired — please sign in again")
                 signOut()
             } catch (e: Exception) {
                 if (profile != api.profile) return@launch
@@ -829,7 +829,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 val down = e is no.lionflow.app.api.ApiException && e.code in 502..504
                 if (down) {
                     // The brand's servers are down or busy: say so once in plain words and try again by itself.
-                    if (serverRetries == 0) toast(no.lionflow.app.ui.l10n.L10n.tr("Peugeot's servers are down or busy right now (error ${e.code}). Your car is fine. EV Remote will try again in a minute."))
+                    if (serverRetries == 0) toast(no.lionflow.app.ui.l10n.L10n.tr("${no.lionflow.app.model.Brands.current.display}'s servers are down or busy right now (error ${e.code}). Your car is fine. EV Remote will try again in a minute."))
                     if (serverRetries < 3) {
                         serverRetries++
                         viewModelScope.launch { kotlinx.coroutines.delay(60_000L * serverRetries); refresh() }
@@ -1397,7 +1397,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private companion object {
-        const val NO_REMOTE = "Peugeot doesn't offer remote control for this car to EV Remote. Check that remote commands (like pre-heating) work in the MyPeugeot app and that remote services are activated there (they need a subscription from the car brand, see Settings). You can still skip and use EV Remote for status, charging and trips."
+        val NO_REMOTE: String get() = "${no.lionflow.app.model.Brands.current.display} doesn't offer remote control for this car to EV Remote. Check that remote commands (like pre-heating) work in the ${no.lionflow.app.model.Brands.current.app} app and that remote services are activated there (they need a subscription from the car brand, see Settings). You can still skip and use EV Remote for status, charging and trips."
         /** EV Remote: shown with Pre-heat when the car is unplugged and under 55 %. */
         const val PREHEAT_LOW_TEXT = "Not plugged in: the car may refuse to pre-heat below about 50 % battery. Plug in or charge first."
     }

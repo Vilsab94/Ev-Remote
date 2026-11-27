@@ -186,7 +186,7 @@ class RemoteControl(private val api: StellantisApi, private val secure: SecureSt
                 }
                 // 900 = accepted, 901 = car asleep (being woken), 902 = checking state, 903 = delivered to the car.
                 if (code == "900" || code == "901" || code == "902") {
-                    progress[id]?.invoke(when (code) { "900" -> "Sent to Peugeot…"; "901" -> "Waking the car…"; else -> "Checking the car…" })
+                    progress[id]?.invoke(when (code) { "900" -> "Sent to ${no.lionflow.app.model.Brands.current.display}…"; "901" -> "Waking the car…"; else -> "Checking the car…" })
                     return
                 }
                 if (code == "903") {
@@ -218,15 +218,15 @@ class RemoteControl(private val api: StellantisApi, private val secure: SecureSt
             "not_compatible" -> "Your car or subscription doesn't support this command"
             "502" -> "The car is still busy with another request — try again in a moment"
             "300" -> "The car didn't answer in time — it may have poor coverage"
-            "500" -> "Peugeot's remote-control server reported an internal error"
+            "500" -> "${no.lionflow.app.model.Brands.current.display}'s remote-control server reported an internal error"
             "422" -> "Privacy mode is on in the car, so remote commands are blocked"
             "506" -> "The car's mobile provider isn't supported for remote commands"
             "507" -> "The car has no GPS coverage right now"
-            "113" -> "Peugeot couldn't match the car (VIN)"
-            else -> "Peugeot answered with an unknown result"
+            "113" -> "${no.lionflow.app.model.Brands.current.display} couldn't match the car (VIN)"
+            else -> "${no.lionflow.app.model.Brands.current.display} answered with an unknown result"
         }
         val codeLabel = if (code == "not_compatible") "400" else code
-        val extra = listOfNotNull(peugeotReason?.ifBlank { null }?.let { "Peugeot says: $it" }).joinToString()
+        val extra = listOfNotNull(peugeotReason?.ifBlank { null }?.let { "${no.lionflow.app.model.Brands.current.display} says: $it" }).joinToString()
         val text = (reason ?: meaning) + " (code $codeLabel" + (if (extra.isNotEmpty()) " · $extra" else "") + ")"
         return CommandResult.Failed(text)
     }
@@ -334,9 +334,9 @@ class RemoteControl(private val api: StellantisApi, private val secure: SecureSt
         } catch (e: Exception) {
             val msg = if (e is org.eclipse.paho.client.mqttv3.MqttException) when (e.reasonCode) {
                 // SUBACK 0x80: connected, but Peugeot won't let this account listen to the car.
-                128 -> "Peugeot refused remote control for this account (MQTT code 128). Usually remote services aren't active for this car: check in MyPeugeot that the remote service is activated and that pre-heating works there. This needs a subscription from the car brand: " + no.lionflow.app.model.Brands.current.eRemotePack + " for charging and pre-heating, " + no.lionflow.app.model.Brands.current.doorsPack + " for lock, lights and horn. If someone else added the car, they may need to share remote access."
-                4, 5 -> "Peugeot's remote-control server didn't accept the login (MQTT code ${e.reasonCode}). Set up remote control again in Settings."
-                else -> "Couldn't connect to Peugeot's remote-control server: ${e.message} (MQTT code ${e.reasonCode})"
+                128 -> "${no.lionflow.app.model.Brands.current.display} refused remote control for this account (MQTT code 128). Usually remote services aren't active for this car: check in ${no.lionflow.app.model.Brands.current.app} that the remote service is activated and that pre-heating works there. This needs a subscription from the car brand: " + no.lionflow.app.model.Brands.current.eRemotePack + " for charging and pre-heating, " + no.lionflow.app.model.Brands.current.doorsPack + " for lock, lights and horn. If someone else added the car, they may need to share remote access."
+                4, 5 -> "${no.lionflow.app.model.Brands.current.display}'s remote-control server didn't accept the login (MQTT code ${e.reasonCode}). Set up remote control again in Settings."
+                else -> "Couldn't connect to ${no.lionflow.app.model.Brands.current.display}'s remote-control server: ${e.message} (MQTT code ${e.reasonCode})"
             } else Http.describe(e)
             addLog("error: $msg")
             CommandResult.Failed(msg)
