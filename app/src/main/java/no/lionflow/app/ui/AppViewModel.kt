@@ -222,15 +222,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /**
-     * EV Remote: a trip's way points – saved on the phone, else asked of the server once per app start (when the
-     * trip has a wayPoints link). Logs "wayPoints: HTTP <code>, <N> points" (never coordinates).
+     * EV Remote: a trip's way points – saved on the phone, else asked of the server (when the trip has a wayPoints
+     * link). A failed answer or 0 points is tried again later (WayPoints.mayTry: every 15 min, 5 times per trip).
+     * Logs "wayPoints: HTTP <code>, <N> points (try n/5)" (never coordinates).
      */
-    private val wayPointsTried = java.util.Collections.synchronizedSet(HashSet<String>())
     suspend fun tripWayPoints(t: Trip): List<Triple<Double, Double, Long>> {
         val ctx = getApplication<Application>()
         no.lionflow.app.model.WayPoints.saved(ctx, t.id)?.let { return it }
         val href = t.wayPointsHref ?: return emptyList()
-        if (isDemo || !wayPointsTried.add(t.id)) return emptyList()
+        if (isDemo || !no.lionflow.app.model.WayPoints.mayTry(ctx, t.id)) return emptyList()
+        val n = no.lionflow.app.model.WayPoints.noteTry(ctx, t.id)
         return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             var answer: Any? = null
             val result = try {
@@ -239,18 +240,29 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             } catch (e: no.lionflow.app.api.ApiException) { "HTTP ${e.code}"
             } catch (e: Exception) { "failed (${e.javaClass.simpleName})" }
             val pts = no.lionflow.app.model.WayPoints.parse(answer)
-            remote.addLog("wayPoints: $result, ${pts.size} points")
+            remote.addLog("wayPoints: $result, ${pts.size} points (try $n/${no.lionflow.app.model.WayPoints.MAX_TRIES})")
             no.lionflow.app.model.WayPoints.saveDebug(ctx, t.id, result, answer)
-            if (pts.isNotEmpty()) no.lionflow.app.model.WayPoints.save(ctx, t.id, pts)
+            if (pts.isNotEmpty()) { no.lionflow.app.model.WayPoints.save(ctx, t.id, pts); no.lionflow.app.model.WayPoints.clearTries(ctx, t.id) }
             pts
         }
     }
 
-    /** EV Remote: way points of the newest server trip → car position (when the car sends none). */
+    /**
+     * EV Remote: way points of the newest server trip → car position (when the car sends none). Until the newest
+     * trip's points come through, the newest trip whose points are saved is used.
+     */
     private fun loadNewestWayPoints(trips: List<Trip>) = viewModelScope.launch {
-        val newest = trips.filter { it.wayPointsHref != null }.maxByOrNull { it.endMillis ?: it.startMillis ?: 0L } ?: return@launch
-        val last = tripWayPoints(newest).lastOrNull() ?: return@launch
-        wayPointEnd = Triple(newest.id, last.first, last.second)
+        val ctx = getApplication<Application>()
+        val withLink = trips.filter { it.wayPointsHref != null }.sortedByDescending { it.endMillis ?: it.startMillis ?: 0L }
+        val newest = withLink.firstOrNull() ?: return@launch
+        var from = newest
+        var last = tripWayPoints(newest).lastOrNull()
+        if (last == null) for (t in withLink.drop(1)) {
+            val p = no.lionflow.app.model.WayPoints.saved(ctx, t.id)?.lastOrNull() ?: continue
+            from = t; last = p; break
+        }
+        if (last == null) return@launch
+        wayPointEnd = Triple(from.id, last.first, last.second)
         applyFallbackPosition()
     }
 

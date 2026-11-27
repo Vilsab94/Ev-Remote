@@ -66,4 +66,29 @@ object WayPoints {
     }
 
     fun debug(ctx: Context): String? = try { debugFile(ctx).takeIf { it.exists() }?.readText() } catch (_: Exception) { null }
+
+    /**
+     * A failed answer (HTTP 5xx, other error, or 0 points) is not final: the trip is asked again when trips are loaded
+     * again, at most every [RETRY_MS] and [MAX_TRIES] times per trip. Kept as "tries,lastTryMillis" per trip.
+     */
+    const val MAX_TRIES = 5
+    const val RETRY_MS = 15 * 60_000L
+    private fun tries(ctx: Context) = ctx.getSharedPreferences("ev_remote", Context.MODE_PRIVATE)
+    private fun triesKey(tripId: String) = "wpTry_$tripId"
+
+    fun mayTry(ctx: Context, tripId: String, now: Long = System.currentTimeMillis()): Boolean {
+        val v = tries(ctx).getString(triesKey(tripId), "")!!.split(",").mapNotNull { it.toLongOrNull() }
+        val n = v.getOrNull(0) ?: 0L; val at = v.getOrNull(1) ?: 0L
+        return n < MAX_TRIES && now - at >= RETRY_MS
+    }
+
+    /** Returns which try this is (1 = first). */
+    fun noteTry(ctx: Context, tripId: String, now: Long = System.currentTimeMillis()): Int {
+        val p = tries(ctx)
+        val n = (p.getString(triesKey(tripId), "")!!.substringBefore(",").toIntOrNull() ?: 0) + 1
+        p.edit().putString(triesKey(tripId), "$n,$now").apply()
+        return n
+    }
+
+    fun clearTries(ctx: Context, tripId: String) { tries(ctx).edit().remove(triesKey(tripId)).apply() }
 }
