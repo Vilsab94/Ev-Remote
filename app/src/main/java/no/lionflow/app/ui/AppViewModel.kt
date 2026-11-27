@@ -861,6 +861,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private var holdPrecond: Pair<Boolean, Long>? = null
     private var holdLock: no.lionflow.app.model.LockHold? = null
     @Volatile private var holdStart: Pair<Int, Long>? = null   // EV Remote: (minutes after midnight, sent at)
+    @Volatile private var holdCharging: Pair<String, Long>? = null   // EV Remote: (charging status asked for, sent at)
 
     private fun applyHolds(st: VehicleStatus): VehicleStatus {
         val now = System.currentTimeMillis()
@@ -878,6 +879,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             val has = st.nextDelayedHour?.let { it * 60 + (st.nextDelayedMinute ?: 0) } == want
             if (has || now - sentAt > 300_000L || reported > sentAt + 15_000L) holdStart = null
             else out = out.copy(nextDelayedHour = want / 60, nextDelayedMinute = want % 60)
+        }
+        // EV Remote: charging started or stopped from the app, shown until the car reports it (3 min at most: the car
+        // can take a minute to start, and reports in between still say "Stopped").
+        holdCharging?.let { (want, sentAt) ->
+            if (!st.plugged || st.chargingStatus == want || now - sentAt > 180_000L) holdCharging = null
+            else out = out.copy(chargingStatus = want)
         }
         return out
     }
@@ -1046,6 +1053,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 remote.addLog("charge now: set the car to 100 % first → ${if (r is CommandResult.Failed) r.reason else "sent"}")
             }
             remote.charging(startNow, st?.nextDelayedHour ?: 1, st?.nextDelayedMinute ?: 0, p)
+                .also { if (it !is CommandResult.Failed && st?.plugged == true) holdCharging = (if (startNow) "InProgress" else "Stopped") to System.currentTimeMillis() }
         }
     }
 
@@ -1107,7 +1115,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             }
             return
         }
-        val delayed = no.lionflow.app.model.ChargePower.scheduledStart(st) != null
+        val delayed = no.lionflow.app.model.ChargePower.delayedNow(st)   // what the car does now, else what was last sent
         runCommand("Scheduled start time", optimistic) { p ->
             remote.charging(!delayed, h, m, p).also { if (it !is CommandResult.Failed) { holdStart = min to System.currentTimeMillis(); settings.update { s2 -> s2.copy(chargeWindowFrom = min) } } }
         }
@@ -1118,14 +1126,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val st = _ui.value.status ?: return
         if (!Caps.battery(st) || settings.value.chargeWindowOn) return
         val (h, m) = no.lionflow.app.model.ChargePower.startTime(st) ?: (1 to 0)
-        runCommand(if (on) "Delayed start on" else "Delayed start off", { it.copy(nextDelayedHour = h, nextDelayedMinute = m) }) { p ->
+        val want = if (on) "Stopped" else "InProgress"
+        runCommand(if (on) "Delayed start on" else "Delayed start off",
+            { it.copy(nextDelayedHour = h, nextDelayedMinute = m, chargingStatus = if (it.plugged && it.chargingStatus != "Finished") want else it.chargingStatus) }) { p ->
             // As "Charge now" did: charging past the car's limit needs the car set to 100 % first.
             val s = settings.value
             if (!on && st.plugged && s.chargeLimitOn && s.chargeForce && st.chargeType != "Full") {
                 val r = remote.chargeLimit(false)
                 remote.addLog("delayed start off: set the car to 100 % first → ${if (r is CommandResult.Failed) r.reason else "sent"}")
             }
-            remote.charging(!on, h, m, p)
+            remote.charging(!on, h, m, p).also { if (it !is CommandResult.Failed && st.plugged && st.chargingStatus != "Finished") holdCharging = want to System.currentTimeMillis() }
         }
     }
 

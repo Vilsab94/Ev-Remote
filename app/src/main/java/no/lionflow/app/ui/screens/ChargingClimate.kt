@@ -147,11 +147,12 @@ fun EstimatedHealth(s: AppSettings, st: no.lionflow.app.model.VehicleStatus?, co
     }
 }
 
-
 /**
  * EV Remote: the car's delayed start. The Opel API only has "immediate" or "delayed" + a time, so the time is
- * always editable (pencil, sent with the mode in use) and "Delayed start" switches between the two. With the
- * charging window on, the window's start is this time: the switch is locked on "delayed".
+ * always editable (pencil, sent with the mode in use). "Delayed start" shows what the car does
+ * (ChargePower.delayedNow): plugged in and waiting → on (also when set with the car's own buttons), charging → off.
+ * Switching it on while charging stops charging until the scheduled time; off charges now. With the charging window
+ * on, the window's start is this time and the window decides (the switch only shows the state).
  */
 @Composable
 private fun ScheduledStartSection(vm: AppViewModel, ui: UiState, s: AppSettings, st: no.lionflow.app.model.VehicleStatus?) {
@@ -159,7 +160,7 @@ private fun ScheduledStartSection(vm: AppViewModel, ui: UiState, s: AppSettings,
     val confirm = LocalConfirm.current
     var editing by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     val time = st?.let { no.lionflow.app.model.ChargePower.startTime(it) }
-    val delayed = st?.let { no.lionflow.app.model.ChargePower.scheduledStart(it) } != null
+    val delayed = st?.let { no.lionflow.app.model.ChargePower.delayedNow(it) } == true
     fun hm(h: Int, m: Int) = String.format(Locale.US, "%02d:%02d", h, m)
     val timeText = time?.let { hm(it.first, it.second) }
     val canSend = vm.remoteReady && st != null && ui.commandInProgress == null
@@ -177,25 +178,38 @@ private fun ScheduledStartSection(vm: AppViewModel, ui: UiState, s: AppSettings,
     if (vm.remoteReady) {
         Divider()
         val locked = s.chargeWindowOn
+        val plugged = st?.plugged == true
+        val charging = st?.isCharging == true
+        val t = timeText ?: "01:00"
+        val state = when {
+            charging -> "Charging now"
+            plugged && delayed -> "Waiting until $t to charge"
+            plugged && st?.chargingStatus == "Finished" -> "Charging finished"
+            plugged -> "Charges now"
+            delayed -> "When plugged in: waits until $t"
+            else -> "When plugged in: charges right away"
+        }
+        val hint = when {
+            locked -> "Set by charging window " + hm(s.chargeWindowFrom / 60, s.chargeWindowFrom % 60) + "–" + hm(s.chargeWindowTo / 60, s.chargeWindowTo % 60)
+            charging -> "Switch on to stop and start at $t"
+            plugged && delayed -> "Switch off to charge now"
+            else -> null
+        }
         Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("Delayed start", style = Type.small.copy(fontSize = 14.sp), color = if (locked) c.muted else c.text)
-                androidx.compose.material3.Text(
-                    no.lionflow.app.ui.l10n.L10n.tr(when {
-                        locked -> "Set by charging window"
-                        delayed && timeText != null -> "Waits until $timeText to charge"
-                        else -> "Charges as soon as it is plugged in"
-                    }), style = Type.tiny, color = c.muted)
+                androidx.compose.material3.Text(no.lionflow.app.ui.l10n.L10n.tr(state), style = Type.tiny, color = c.text2)
+                if (hint != null) androidx.compose.material3.Text(no.lionflow.app.ui.l10n.L10n.tr(hint), style = Type.tiny, color = c.muted)
             }
             Box(Modifier.alpha(if (locked || !canSend) 0.45f else 1f)) {
-                Toggle(locked || delayed, "Delayed start") { on ->
+                Toggle(delayed, "Delayed start") { on ->
                     if (locked || !canSend) return@Toggle
-                    val t = timeText ?: "01:00"
                     confirm(when {
-                        on && st?.isCharging == true -> "Delayed start on? Charging stops and waits until $t."
-                        on -> "Delayed start on? The car waits until $t to charge."
-                        st?.plugged == true -> "Delayed start off? Charging starts now."
-                        else -> "Delayed start off? The car charges as soon as it is plugged in."
+                        on && charging -> "Stop charging now and start again at $t?"
+                        on && plugged -> "Wait until $t to charge?"
+                        on -> "Delayed start on? When plugged in, the car waits until $t."
+                        plugged -> "Start charging now?"
+                        else -> "Delayed start off? When plugged in, the car charges right away."
                     }) { vm.setDelayedStart(on) }
                 }
             }

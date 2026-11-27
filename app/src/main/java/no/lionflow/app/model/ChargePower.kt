@@ -182,6 +182,34 @@ object ChargePower {
     /** EV Remote: when EV Remote last sent /VehCharge that the car accepted (0 if never). */
     fun lastStartSentAt(): Long = prefs?.getLong(k("startSentAt"), 0L) ?: 0L
 
+    /**
+     * EV Remote: is the car set to wait for its scheduled start? Plugged in, the car's own state decides: charging →
+     * no (charging now); plugged in, stopped and with a start time → yes (waiting, also when the delay was set with
+     * the car's own buttons). Unplugged or finished the car can't tell: what EV Remote last sent ([scheduledStart]).
+     */
+    fun delayedNow(st: VehicleStatus): Boolean = when {
+        st.plugged && st.isCharging -> false
+        waiting(st) -> true
+        else -> scheduledStart(st) != null
+    }
+
+    private fun waiting(st: VehicleStatus) = st.plugged && st.chargingStatus == "Stopped" && st.nextDelayedHour != null
+
+    /**
+     * EV Remote: plugged in and waiting with a start time means the car is in delayed mode, so a remembered "immediate"
+     * is forgotten (only for reports more than 5 min after it was sent, so the car had time to start charging).
+     */
+    private fun learnStartMode(st: VehicleStatus) {
+        val p = prefs ?: return
+        if (!waiting(st)) return
+        val mode = p.getString(k("startMode"), "").orEmpty()
+        if (!mode.startsWith("immediate")) return
+        val sentAt = mode.split(",").getOrNull(2)?.toLongOrNull() ?: 0L
+        if ((st.updatedAtMillis ?: 0L) <= sentAt + 5 * 60_000L) return
+        p.edit().putString(k("startMode"), "delayed").apply()
+        try { log?.invoke("car is plugged in and waiting for its scheduled start: delayed start on") } catch (_: Exception) { }
+    }
+
     /** Called after /VehCharge was accepted: [hour]:[minute] is the time sent with it. */
     fun rememberStartMode(immediate: Boolean, hour: Int, minute: Int) {
         prefs?.edit()?.putString(k("startMode"), if (immediate) "immediate,$hour:$minute,${System.currentTimeMillis()}" else "delayed")
@@ -220,6 +248,7 @@ object ChargePower {
         try { ChargeLog.observe(st) } catch (_: Exception) { }
         try { CarTrips.observe(st) } catch (_: Exception) { }
         try { OutsideTemp.record(st) } catch (_: Exception) { }   // EV Remote: temperature per trip
+        try { learnStartMode(st) } catch (_: Exception) { }   // EV Remote: the car's own delayed mode
         val p = prefs ?: return st
         remember(p, st)
         if (!st.isCharging) { p.edit().remove(k("s")).apply(); return st }
