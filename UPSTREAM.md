@@ -22,6 +22,9 @@ customised for an Opel Mokka-e. All credit for the original app goes to its auth
   "Outside" from the weather, mild-hybrid texts, `remember(…, carLevel)` "car says"; mph (36fdff4 Root/HomeCards/
   TripsService), Android Auto (CarInfoScreen), iOS, new languages (Finnish, Danish, l10n.tsv, wear strings),
   README/PRIVACY.
+- Checked up to LionFlow `99ce4ba` (2026-11-27). Taken: 99ce4ba MapScreen car symbol (car seen from above, arrow only
+  with a heading; the Mokka-e sends none). Not taken: d187709 (lastPosition: ours already asks it, with the 404 rule;
+  petrol cars without fuel data), iOS.
 
 ## EV Remote changes (kept small so LionFlow updates merge easily)
 
