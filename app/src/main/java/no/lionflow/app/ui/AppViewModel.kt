@@ -927,10 +927,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 // Arrives later only when we stopped waiting at "delivered".
                 onFinal = { r ->
                     when (r) {
-                        is CommandResult.Failed -> { holdPrecond = null; holdLock = null; remote.addLog("$label failed: ${r.reason}")
+                        is CommandResult.Failed -> { if (!preheatAnswer(label, r)) { holdPrecond = null; holdLock = null; remote.addLog("$label failed: ${r.reason}")
                             // EV Remote: the likely cause when pre-heating is refused unplugged on a low battery.
                             val why = if (label == "Pre-heating" && preheatLowBattery(_ui.value.status)) " " + no.lionflow.app.ui.l10n.L10n.tr(PREHEAT_LOW_TEXT) else ""
-                            toast("$label didn't go through: ${r.reason}.$why") }
+                            toast("$label didn't go through: ${r.reason}.$why") } }
                         else -> {}
                     }
                     viewModelScope.launch { delay(2_000); refresh() }
@@ -944,7 +944,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     toast(if (r is CommandResult.Delivered) "$label — the car got it" else "$label — done")
                     refreshSoon()
                 }
-                is CommandResult.Failed -> {
+                is CommandResult.Failed -> if (preheatAnswer(label, r)) Unit else {
                     holdPrecond = null; holdLock = null
                     _ui.update { it.copy(commandInProgress = null, commandProgress = null) }
                     remote.addLog("$label failed: ${r.reason}")
@@ -965,6 +965,28 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             return
         }
         preconditioningSend(on)
+    }
+
+    /**
+     * EV Remote (PLAN.md item 4): the car's pre-heating answers that only say what it already does. Error 1 on
+     * "Pre-heating" (already running, e.g. by a schedule while unplugged, when the car reports Disabled) shows it as
+     * on, so the button becomes Stop. Error 4 on "Stop pre-heating" (wasn't running) shows it as off. True = handled.
+     */
+    private fun preheatAnswer(label: String, r: CommandResult.Failed): Boolean {
+        val on = when {
+            label == "Pre-heating" && r.reason.contains(PREHEAT_ALREADY_ON) -> true
+            label == "Stop pre-heating" && r.reason.contains(PREHEAT_ALREADY_OFF) -> false
+            else -> return false
+        }
+        holdPrecond = on to System.currentTimeMillis() + 300_000
+        holdLock = null
+        no.lionflow.app.model.ChargePower.rememberPrecond(on)
+        _ui.update { s -> s.copy(commandInProgress = null, commandProgress = null, status = s.status?.copy(preconditioningOn = on,
+            preheatGuess = if (on) "the car said it is already running" else null)) }
+        remote.addLog("$label: " + (if (on) "the car says it is already running (error 1), shown as on" else "the car says it wasn't running (error 4), shown as off"))
+        toast(if (on) "Pre-heating is already running — tap Stop to turn it off" else "Pre-heating wasn't running")
+        viewModelScope.launch { delay(2_000); refresh() }
+        return true
     }
 
     private fun preconditioningSend(on: Boolean) = runCommand(if (on) "Pre-heating" else "Stop pre-heating", { holdPrecond = on to System.currentTimeMillis() + 300_000; it.copy(preconditioningOn = on, preheatGuess = null) }) { p ->
@@ -1505,6 +1527,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     private companion object {
         val NO_REMOTE: String get() = "${no.lionflow.app.model.Brands.current.display} doesn't offer remote control for this car to EV Remote. Check that remote commands (like pre-heating) work in the ${no.lionflow.app.model.Brands.current.app} app and that remote services are activated there (they need a subscription from the car brand, see Settings). You can still skip and use EV Remote for status, charging and trips."
+        // EV Remote: RemoteControl.describeRespData texts for /ThermalPrecond error 1 and 4.
+        const val PREHEAT_ALREADY_ON = "Pre-heating is already running"
+        const val PREHEAT_ALREADY_OFF = "Pre-heating wasn't running"
         /** EV Remote: shown with Pre-heat when the car is unplugged and under 55 %. */
         const val PREHEAT_LOW_TEXT = "Not plugged in: the car may refuse to pre-heat below about 50 % battery. Plug in or charge first."
     }
