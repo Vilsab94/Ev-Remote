@@ -430,13 +430,22 @@ class StellantisApi(private val ctx: Context, private val secure: SecureStore, p
     private val evPrefs by lazy { ctx.getSharedPreferences("ev_remote", Context.MODE_PRIVATE) }
 
     private suspend fun addLastPosition(v: Vehicle, status: JSONObject) {
-        // The server answered 404 for this car before: it has no such data for it, so don't ask again.
+        // After a 404 (no such data for this car) the request is skipped until the car has driven since (odometer
+        // higher than at the 404, i.e. a new trip) or 24 h have passed. Kept as "lastPos404_<id>" = "millis,odometer".
         val gone = "lastPos404_${v.id}"
-        if (evPrefs.getBoolean(gone, false)) {
-            status.put(VehicleStatus.LAST_POSITION_KEY, JSONObject().put("skipped", "HTTP 404 earlier for this car, not asked again"))
-            val line = "lastPosition: not asked (HTTP 404 before)"
-            if (line != lastPosLog) { lastPosLog = line; lastPosLogAt = System.currentTimeMillis(); try { log?.invoke(line) } catch (_: Exception) { } }
-            return
+        val km = status.optJSONObject("odometer")?.optDouble("mileage")?.takeIf { !it.isNaN() }
+        val prev = try { evPrefs.getString(gone, null) } catch (_: ClassCastException) { evPrefs.edit().remove(gone).apply(); null }
+        if (prev != null) {
+            val at = prev.substringBefore(",").toLongOrNull() ?: 0L
+            val atKm = prev.substringAfter(",", "").toDoubleOrNull()
+            val drove = km != null && atKm != null && km > atKm + 0.5
+            val age = System.currentTimeMillis() - at
+            if (!drove && age < 24 * 3_600_000L) {
+                status.put(VehicleStatus.LAST_POSITION_KEY, JSONObject().put("skipped", "HTTP 404 earlier for this car, asked again after a new trip or 24 h"))
+                val line = "lastPosition: not asked (HTTP 404 ${age / 3_600_000L} h ago)"
+                if (line != lastPosLog) { lastPosLog = line; lastPosLogAt = System.currentTimeMillis(); try { log?.invoke(line) } catch (_: Exception) { } }
+                return
+            }
         }
         val line = try {
             // The token the status request just used; no renewal on 401 here (a refused position must not touch the sign-in).
@@ -445,14 +454,15 @@ class StellantisApi(private val ctx: Context, private val secure: SecureStore, p
             val body = Http.text(carHeaders(Request.Builder().url(url), token).get().build())
             val parsed = try { JSONObject(body) } catch (_: Exception) { null }
             status.put(VehicleStatus.LAST_POSITION_KEY, parsed ?: JSONObject().put("body", body.take(2000)))
+            if (prev != null) evPrefs.edit().remove(gone).apply()
             val hasPos = parsed != null && VehicleStatus.positionFeature(parsed) != null
             "lastPosition: HTTP 200" + if (hasPos) ", position received" else ", no position in the answer"
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: ApiException) {
             status.put(VehicleStatus.LAST_POSITION_KEY, JSONObject().put("error", "HTTP ${e.code}"))
-            if (e.noData) evPrefs.edit().putBoolean(gone, true).apply()
-            "lastPosition: HTTP ${e.code}" + if (e.noData) " (no data for this car, won't ask again)" else ""
+            if (e.noData) evPrefs.edit().putString(gone, "${System.currentTimeMillis()},${km ?: ""}").apply()
+            "lastPosition: HTTP ${e.code}" + if (e.noData) " (no data for this car, asked again after a new trip or 24 h)" else ""
         } catch (e: Exception) {
             status.put(VehicleStatus.LAST_POSITION_KEY, JSONObject().put("error", e.javaClass.simpleName))
             "lastPosition: failed (${e.javaClass.simpleName})"
@@ -467,7 +477,7 @@ class StellantisApi(private val ctx: Context, private val secure: SecureStore, p
 
     suspend fun status(v: Vehicle): JSONObject {
         val s = statusOnly(v)
-        // EV Remote: both battery health values as sent, every time (SoH is taken from "capacity" only).
+        // EV Remote: both battery health values as sent, every time (SoH: capacity, else resistance).
         try { log?.invoke(VehicleStatus.healthLog(s)) } catch (_: Exception) { }
         addLastPosition(v, s)
         return s
