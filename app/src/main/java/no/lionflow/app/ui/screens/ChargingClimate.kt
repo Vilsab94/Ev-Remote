@@ -24,6 +24,8 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.runtime.setValue
 import no.lionflow.app.ui.components.Toggle
 import androidx.compose.ui.text.SpanStyle
@@ -98,17 +100,10 @@ fun ChargingScreen(vm: AppViewModel, ui: UiState, s: AppSettings, wide: Boolean)
             DetailRow("Battery health", healthText(st) ?: "—")
             EstimatedHealth(s, st)
         }
-        // EV Remote: only "Stop charging" while it charges (sends delayed with the scheduled start time); to charge
-        // now, turn "Delayed start" off.
-        if (vm.remoteReady && st?.isCharging == true) PrimaryButton(
-            text = if (ui.commandInProgress == "Stop charging") (ui.commandProgress ?: "Sending…") else "Stop charging",
-            modifier = Modifier.fillMaxWidth(),
-            enabled = ui.commandInProgress == null,
-        ) {
-            confirm("Stop charging") { vm.charging(false) }
-        }
+        // EV Remote: one big switch instead of "Charge now" / "Stop charging": Delayed while charging stops it.
+        DelayedStartControl(vm, ui, s, st)
         Text(
-            "Charging power is worked out by EV Remote (the car only reports range per hour): measured from the energy added between two car reports, or estimated from the time left until then. The car only knows \"charge now\" or \"wait for the scheduled start\": “Delayed start” switches between them, and “Stop charging” turns it on (the car then waits for that time).",
+            "Charging power is worked out by EV Remote (the car only reports range per hour): measured from the energy added between two car reports, or estimated from the time left until then. The car only knows \"charge now\" or \"wait for the scheduled start\": the switch above shows which one the car is set to and changes it.",
             style = Type.tiny, color = c.muted,
         )
         if (vm.remoteReady) ChargeLimitCard(vm, ui, s) else RemoteSetupHint(vm)
@@ -148,11 +143,8 @@ fun EstimatedHealth(s: AppSettings, st: no.lionflow.app.model.VehicleStatus?, co
 }
 
 /**
- * EV Remote: the car's delayed start. The Opel API only has "immediate" or "delayed" + a time, so the time is
- * always editable (pencil, sent with the mode in use). "Delayed start" shows what the car does
- * (ChargePower.delayedNow): plugged in and waiting → on (also when set with the car's own buttons), charging → off.
- * Switching it on while charging stops charging until the scheduled time; off charges now. With the charging window
- * on, the window's start is this time and the window decides (the switch only shows the state).
+ * EV Remote: the car's scheduled start time. The Opel API only has "immediate" or "delayed" + a time, so the time
+ * is always editable (pencil, sent with the mode in use). Delayed or not is the big [DelayedStartControl].
  */
 @Composable
 private fun ScheduledStartSection(vm: AppViewModel, ui: UiState, s: AppSettings, st: no.lionflow.app.model.VehicleStatus?) {
@@ -160,14 +152,10 @@ private fun ScheduledStartSection(vm: AppViewModel, ui: UiState, s: AppSettings,
     val confirm = LocalConfirm.current
     var editing by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     val time = st?.let { no.lionflow.app.model.ChargePower.startTime(it) }
-    val delayed = st?.let { no.lionflow.app.model.ChargePower.delayedNow(it) } == true
-    fun hm(h: Int, m: Int) = String.format(Locale.US, "%02d:%02d", h, m)
-    val timeText = time?.let { hm(it.first, it.second) }
     val canSend = vm.remoteReady && st != null && ui.commandInProgress == null
-    val mine = ui.commandInProgress?.let { it == "Scheduled start time" || it.startsWith("Delayed start") } == true
     Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
         Text("Scheduled start", style = Type.small.copy(fontSize = 14.sp), color = c.muted, modifier = Modifier.weight(1f))
-        androidx.compose.material3.Text(timeText ?: no.lionflow.app.ui.l10n.L10n.tr("Not set"), style = Type.label, color = c.text)
+        androidx.compose.material3.Text(time?.let { hm24(it.first, it.second) } ?: no.lionflow.app.ui.l10n.L10n.tr("Not set"), style = Type.label, color = c.text)
         if (vm.remoteReady) Box(
             Modifier.padding(start = 8.dp).size(40.dp).clip(androidx.compose.foundation.shape.CircleShape)
                 .clickable(enabled = canSend) { editing = true }
@@ -175,51 +163,79 @@ private fun ScheduledStartSection(vm: AppViewModel, ui: UiState, s: AppSettings,
             contentAlignment = Alignment.Center,
         ) { LfIcon(LfIcons.Pencil, if (canSend) c.accentInk else c.muted, 18.dp) }
     }
-    if (vm.remoteReady) {
-        Divider()
-        val locked = s.chargeWindowOn
-        val plugged = st?.plugged == true
-        val charging = st?.isCharging == true
-        val t = timeText ?: "01:00"
-        val state = when {
-            charging -> "Charging now"
-            plugged && delayed -> "Waiting until $t to charge"
-            plugged && st?.chargingStatus == "Finished" -> "Charging finished"
-            plugged -> "Charges now"
-            delayed -> "When plugged in: waits until $t"
-            else -> "When plugged in: charges right away"
-        }
-        val hint = when {
-            locked -> "Set by charging window " + hm(s.chargeWindowFrom / 60, s.chargeWindowFrom % 60) + "–" + hm(s.chargeWindowTo / 60, s.chargeWindowTo % 60)
-            charging -> "Switch on to stop and start at $t"
-            plugged && delayed -> "Switch off to charge now"
-            else -> null
-        }
-        Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("Delayed start", style = Type.small.copy(fontSize = 14.sp), color = if (locked) c.muted else c.text)
-                androidx.compose.material3.Text(no.lionflow.app.ui.l10n.L10n.tr(state), style = Type.tiny, color = c.text2)
-                if (hint != null) androidx.compose.material3.Text(no.lionflow.app.ui.l10n.L10n.tr(hint), style = Type.tiny, color = c.muted)
-            }
-            Box(Modifier.alpha(if (locked || !canSend) 0.45f else 1f)) {
-                Toggle(delayed, "Delayed start") { on ->
-                    if (locked || !canSend) return@Toggle
-                    confirm(when {
-                        on && charging -> "Stop charging now and start again at $t?"
-                        on && plugged -> "Wait until $t to charge?"
-                        on -> "Delayed start on? When plugged in, the car waits until $t."
-                        plugged -> "Start charging now?"
-                        else -> "Delayed start off? When plugged in, the car charges right away."
-                    }) { vm.setDelayedStart(on) }
+    if (ui.commandInProgress == "Scheduled start time")
+        androidx.compose.material3.Text(ui.commandProgress ?: no.lionflow.app.ui.l10n.L10n.tr("Sending…"), style = Type.tiny, color = c.accentInk)
+    if (editing) ClockDialog("Scheduled start", time?.let { it.first * 60 + it.second } ?: 60, onClose = { editing = false }, is24 = true) { m ->
+        editing = false
+        val t = hm24(m / 60, m % 60)
+        confirm(if (s.chargeWindowOn) "Change scheduled start to $t? The charging window starts then too." else "Change scheduled start to $t?") { vm.setStartTime(m) }
+    }
+}
+
+internal fun hm24(h: Int, m: Int) = String.format(Locale.US, "%02d:%02d", h, m)
+
+/**
+ * EV Remote: a big two-way switch, "Charge now" | "Delayed 04:30", showing what the car does
+ * (ChargePower.delayedNow): plugged in and waiting → Delayed (also when set with the car's own buttons),
+ * charging → Charge now. Delayed while charging stops charging until the scheduled time; Charge now starts it.
+ * With the charging window on it only shows the state ("Set by charging window"). Used on Charging and Home.
+ */
+@Composable
+internal fun DelayedStartControl(vm: AppViewModel, ui: UiState, s: AppSettings, st: no.lionflow.app.model.VehicleStatus?, modifier: Modifier = Modifier, showState: Boolean = true) {
+    if (!vm.remoteReady || st == null || !no.lionflow.app.ui.Caps.battery(st)) return
+    val c = LocalLf.current
+    val confirm = LocalConfirm.current
+    val delayed = no.lionflow.app.model.ChargePower.delayedNow(st)
+    val t = no.lionflow.app.model.ChargePower.startTime(st)?.let { hm24(it.first, it.second) } ?: "01:00"
+    val locked = s.chargeWindowOn
+    val busy = ui.commandInProgress?.let { it.startsWith("Delayed start") || it == "Stop charging" } == true
+    val canSend = ui.commandInProgress == null && !locked
+    val plugged = st.plugged
+    val charging = st.isCharging
+    fun pick(on: Boolean) {
+        if (!canSend || on == delayed) return
+        confirm(when {
+            on && charging -> "Stop charging now and start again at $t?"
+            on && plugged -> "Wait until $t to charge?"
+            on -> "Delayed start on? When plugged in, the car waits until $t."
+            plugged -> "Start charging now?"
+            else -> "Delayed start off? When plugged in, the car charges right away."
+        }) { vm.setDelayedStart(on) }
+    }
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(
+            Modifier.fillMaxWidth().height(60.dp).clip(RoundedCornerShape(30.dp)).background(c.raised)
+                .border(1.dp, c.line2, RoundedCornerShape(30.dp)).padding(4.dp)
+                .alpha(if (locked) 0.6f else 1f)
+                .semantics { contentDescription = "Delayed start"; stateDescription = if (delayed) "Delayed until $t" else "Charge now" },
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            listOf(false to "Charge now", true to "Delayed · $t").forEach { (value, label) ->
+                val sel = value == delayed
+                Box(
+                    Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(26.dp))
+                        .background(if (sel) c.accent else androidx.compose.ui.graphics.Color.Transparent)
+                        .clickable(enabled = canSend && !sel) { pick(value) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    androidx.compose.material3.Text(
+                        if (sel && busy) (ui.commandProgress ?: no.lionflow.app.ui.l10n.L10n.tr("Sending…")) else no.lionflow.app.ui.l10n.L10n.tr(label),
+                        style = Type.label.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
+                        color = if (sel) c.onAccent else c.text2, maxLines = 1)
                 }
             }
         }
-        if (mine) androidx.compose.material3.Text(ui.commandProgress ?: no.lionflow.app.ui.l10n.L10n.tr("Sending…"), style = Type.tiny, color = c.accentInk)
-    }
-    if (editing) ClockDialog("Scheduled start", time?.let { it.first * 60 + it.second } ?: 60, onClose = { editing = false }, is24 = true) { m ->
-        editing = false
-        val t = hm(m / 60, m % 60)
-        confirm(if (s.chargeWindowOn) "Change scheduled start to $t? The charging window starts then too." else "Change scheduled start to $t?") { vm.setStartTime(m) }
+        val state = when {
+            locked -> "Set by charging window " + hm24(s.chargeWindowFrom / 60, s.chargeWindowFrom % 60) + "–" + hm24(s.chargeWindowTo / 60, s.chargeWindowTo % 60)
+            charging -> "Charging now · Delayed stops it and starts again at $t"
+            plugged && delayed -> "Plugged in · waiting until $t to charge"
+            plugged && st.chargingStatus == "Finished" -> "Plugged in · charging finished"
+            plugged -> "Plugged in · charges now"
+            delayed -> "Not plugged in · when plugged in, waits until $t"
+            else -> "Not plugged in · when plugged in, charges right away"
+        }
+        if (showState || locked) androidx.compose.material3.Text(no.lionflow.app.ui.l10n.L10n.tr(state), style = Type.tiny, color = c.muted,
+            modifier = Modifier.fillMaxWidth(), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
     }
 }
 @Composable
