@@ -50,8 +50,9 @@ Findings from testing LionFlow with this car (Nov 2026):
    "Delayed start" shows what the car does: waiting when plugged in (also set with the car's buttons) → on, charging →
    off; on while charging stops it until the scheduled time. Big "Charge now | Delayed" switch on Charging and Home.
 6. ✅ **Done (2026-11-27)** – **Command & error log** saved on the phone (`command_log.txt`, last 500 lines, with date).
-7. Hide (don't delete, to keep upstream merges easy): trip planner, Android Auto entry, Norway
-   prices/NOBIL, YouTube screen.
+7. ✅ **Done (2026-11-26/27)** – Hide (don't delete, to keep upstream merges easy): trip planner, Android Auto entry, Norway
+   prices/NOBIL, YouTube screen. Planner search bar and the Android Auto settings are hidden; NOBIL only shows with a
+   built-in key (none). Android Auto itself stays registered: route recording needs it (see UPSTREAM.md).
 8. Waking the car too often triggered the car's 12 V "energy saving mode" – keep wakes minimal
    outside charging. `battery.voltage` (12 V indicator) was 64.
    ✅ (2026-11-27) Car data card warns below 60 %: "12 V battery low – avoid waking the car often";
