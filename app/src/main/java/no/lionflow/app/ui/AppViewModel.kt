@@ -1015,7 +1015,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         // EV Remote: charging first, so the heater runs on grid power from the start.
         if (on && grid) {
             p.onProgress("Starting charging…")
-            val c = gp.startCharging(app(), st, System.currentTimeMillis() + gp.NOW_MIN * 60_000L, "pre-heat now")
+            val c = gp.startChargingNow(app(), st)
             if (c is CommandResult.Failed) toast("Couldn't start charging (${c.reason}), pre-heating from the battery")
         }
         val r = remote.preconditioning(on, st.programsJson(), p).also { if (it !is CommandResult.Failed) no.lionflow.app.model.ChargePower.rememberPrecond(on) }

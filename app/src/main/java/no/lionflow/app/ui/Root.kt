@@ -122,7 +122,7 @@ fun LionFlowRoot(vm: AppViewModel, platform: Platform) {
                     containerColor = c.card,
                     title = { Text("Pre-heat on grid power?", color = c.text) },
                     text = {
-                        Text("The car is plugged in but not charging, so it would heat from its battery. EV Remote can switch charging on while it pre-heats (about 30 minutes) and back to the delayed start afterwards. The battery may gain a few %.",
+                        Text("The car is plugged in but not charging, so it would heat from its battery. EV Remote can switch charging on while it pre-heats, check the car every 5 minutes and switch back to the delayed start as soon as pre-heating ends. The battery may gain a few %.",
                             style = Type.small, color = c.text2)
                     },
                     confirmButton = { androidx.compose.material3.TextButton(onClick = { vm.answerGridPreheat(true) }) { Text("Use grid power", color = c.accentInk) } },

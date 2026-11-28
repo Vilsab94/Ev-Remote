@@ -118,7 +118,7 @@ fun PreheatSchedules(vm: AppViewModel, ui: UiState) {
         // EV Remote: work/GridPreheat.kt
         Divider()
         ToggleRow("Pre-heat on grid power",
-            "When the car is plugged in but not charging (e.g. stopped at the charge limit), charging is switched on from 30 minutes before the set time until pre-heating ends, then back to the delayed start. Up to 5 % over the charge limit.",
+            "When the car is plugged in but not charging (e.g. stopped at the charge limit), charging is switched on from 30 minutes before the set time. From the set time the car is checked every 5 minutes, and as soon as pre-heating ends it goes back to the delayed start. Up to 5 % over the charge limit.",
             vm.gridPreheatSchedules, showDivider = false) { vm.setGridPreheatSchedules(it) }
     }
 

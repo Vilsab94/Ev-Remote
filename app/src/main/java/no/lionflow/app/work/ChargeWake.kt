@@ -46,6 +46,8 @@ object ChargeWake {
         val now = System.currentTimeMillis()
         when {
             !st.plugged -> stop(app, "unplugged")
+            // Charging for pre-heating on grid power: GridPreheat wakes the car itself.
+            st.isCharging && GridPreheat.ownActive(app) -> {}
             st.isCharging -> {
                 val near = s.chargeLimitOn && (st.batteryPct ?: 0.0) >= s.chargeLimitPct - 8
                 at(app, now + (if (near) 5 else 15) * 60_000L, if (near) "charging, near the limit" else "charging")
