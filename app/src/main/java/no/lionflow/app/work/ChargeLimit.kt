@@ -42,7 +42,8 @@ object ChargeLimit {
         val kw = no.lionflow.app.model.ChargePower.reading(st)?.kw ?: 0.0
         val ageMin = ((System.currentTimeMillis() - (st.updatedAtMillis ?: System.currentTimeMillis())) / 60_000.0).coerceIn(0.0, 60.0)
         val gain = (kw * ((5.0 + ageMin) / 60.0) / no.lionflow.app.model.ChargePower.usableKwh(st) * 100).coerceIn(0.0, if (ageMin > 10) 10.0 else 3.0)
-        return pct + gain >= s.chargeLimitPct
+        // EV Remote: while charging for pre-heating on grid power (GridPreheat), a few % more are allowed.
+        return pct + gain >= s.chargeLimitPct + if (GridPreheat.active(app)) GridPreheat.OVER_LIMIT else 0
     }
 
     /** True if something should be done now (a try, or telling the user it didn't work). */
@@ -58,7 +59,7 @@ object ChargeLimit {
      * within the next hour (then charging would just start again) — then it picks a time
      * 12 hours from now.
      */
-    private fun delayTime(st: VehicleStatus): Pair<Int, Int> {
+    internal fun delayTime(st: VehicleStatus): Pair<Int, Int> {
         val now = Calendar.getInstance()
         val nowMin = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
         val h = st.nextDelayedHour; val m = st.nextDelayedMinute

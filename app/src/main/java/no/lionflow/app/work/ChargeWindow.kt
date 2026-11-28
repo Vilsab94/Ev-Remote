@@ -65,7 +65,8 @@ object ChargeWindow {
         val inWindow = inside(now, s.chargeWindowFrom, s.chargeWindowTo)
         val overLimit = s.chargeLimitOn && (st.batteryPct ?: 0.0) >= s.chargeLimitPct - 1
         val what = when {
-            st.isCharging && !inWindow -> "stop"
+            // EV Remote: not while charging for pre-heating on grid power (GridPreheat).
+            st.isCharging && !inWindow && !GridPreheat.active(app) -> "stop"
             inWindow && st.plugged && !st.isCharging && st.chargingStatus != "Finished" && !overLimit && (st.batteryPct ?: 0.0) < 99 -> "start"
             else -> { app.settings.setRaw(K_STATE, ""); return null }
         }

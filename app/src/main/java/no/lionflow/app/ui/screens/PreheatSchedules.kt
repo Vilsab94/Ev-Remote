@@ -115,6 +115,11 @@ fun PreheatSchedules(vm: AppViewModel, ui: UiState) {
         } else {
             Text("The car has room for 4 schedules.", style = Type.tiny, color = c.muted, modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp))
         }
+        // EV Remote: work/GridPreheat.kt
+        Divider()
+        ToggleRow("Pre-heat on grid power",
+            "When the car is plugged in but not charging (e.g. stopped at the charge limit), charging is switched on from 30 minutes before the set time until pre-heating ends, then back to the delayed start. Up to 5 % over the charge limit.",
+            vm.gridPreheatSchedules, showDivider = false) { vm.setGridPreheatSchedules(it) }
     }
 
     SmartScheduleCard(vm, ui)

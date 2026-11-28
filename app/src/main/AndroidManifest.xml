@@ -97,6 +97,10 @@
         <receiver
             android:name=".work.ChargeWakeReceiver"
             android:exported="false" />
+        <!-- EV Remote: exact alarms that switch charging on while pre-heating on grid power (work/GridPreheat.kt) -->
+        <receiver
+            android:name=".work.GridPreheatReceiver"
+            android:exported="false" />
         <!-- EV Remote: expedited background work runs as a short foreground service on Android 8–11 -->
         <service
             android:name="androidx.work.impl.foreground.SystemForegroundService"

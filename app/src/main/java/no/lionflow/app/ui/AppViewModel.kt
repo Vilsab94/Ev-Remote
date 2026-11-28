@@ -829,6 +829,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 // EV Remote: plan the wake-ups while charging; ask once to let them run at night.
                 if (!isDemo && !missing) {
                     try { no.lionflow.app.work.ChargeWake.plan(app(), st) } catch (_: Exception) { }
+                    try { no.lionflow.app.work.GridPreheat.plan(app(), st) } catch (_: Exception) { }
                     if (st.plugged && remote.isSetUp && !ignoresBatteryOptimization() && !settings.raw("askedBatteryOpt").toBoolean()) askBatteryOptimization = true
                 }
                 if (_ui.value.trips.isEmpty() && !_ui.value.tripsLoading) loadTrips()
@@ -964,7 +965,26 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             toast(no.lionflow.app.ui.l10n.L10n.tr("Plug-in hybrids can only pre-heat with at least 50 % battery. Charge the car first."))
             return
         }
+        // EV Remote: plugged in but not charging, it would heat from the battery: ask whether to charge meanwhile.
+        if (on && !isDemo && st != null && remote.isSetUp && no.lionflow.app.work.GridPreheat.wouldUseBattery(st)) { askGridPreheat = true; return }
         preconditioningSend(on)
+    }
+
+    /** EV Remote: "Use grid power?" before pre-heating a plugged-in car that isn't charging (GridPreheat). */
+    var askGridPreheat by androidx.compose.runtime.mutableStateOf(false)
+    /** [grid] true = charge while pre-heating, false = from the battery, null = cancelled. */
+    fun answerGridPreheat(grid: Boolean?) {
+        askGridPreheat = false
+        if (grid != null) preconditioningSend(true, grid)
+    }
+
+    /** EV Remote: use grid power for the car's pre-heating schedules (on by default). */
+    var gridPreheatSchedules by androidx.compose.runtime.mutableStateOf(no.lionflow.app.work.GridPreheat.forSchedules(app()))
+        private set
+    fun setGridPreheatSchedules(on: Boolean) {
+        gridPreheatSchedules = on
+        no.lionflow.app.work.GridPreheat.setForSchedules(app(), on)
+        _ui.value.status?.let { st -> try { no.lionflow.app.work.GridPreheat.plan(app(), st) } catch (_: Exception) { } }
     }
 
     /**
@@ -989,9 +1009,21 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         return true
     }
 
-    private fun preconditioningSend(on: Boolean) = runCommand(if (on) "Pre-heating" else "Stop pre-heating", { holdPrecond = on to System.currentTimeMillis() + 300_000; it.copy(preconditioningOn = on, preheatGuess = null) }) { p ->
+    private fun preconditioningSend(on: Boolean, grid: Boolean = false) = runCommand(if (on) "Pre-heating" else "Stop pre-heating", { holdPrecond = on to System.currentTimeMillis() + 300_000; it.copy(preconditioningOn = on, preheatGuess = null) }) { p ->
         val st = _ui.value.status ?: return@runCommand CommandResult.Failed("No status yet")
-        remote.preconditioning(on, st.programsJson(), p).also { if (it !is CommandResult.Failed) no.lionflow.app.model.ChargePower.rememberPrecond(on) }
+        val gp = no.lionflow.app.work.GridPreheat
+        // EV Remote: charging first, so the heater runs on grid power from the start.
+        if (on && grid) {
+            p.onProgress("Starting charging…")
+            val c = gp.startCharging(app(), st, System.currentTimeMillis() + gp.NOW_MIN * 60_000L, "pre-heat now")
+            if (c is CommandResult.Failed) toast("Couldn't start charging (${c.reason}), pre-heating from the battery")
+        }
+        val r = remote.preconditioning(on, st.programsJson(), p).also { if (it !is CommandResult.Failed) no.lionflow.app.model.ChargePower.rememberPrecond(on) }
+        // Pre-heating stopped (or wasn't running, or didn't start): charging off again.
+        val ended = if (on) r is CommandResult.Failed && !r.reason.contains(PREHEAT_ALREADY_ON)
+            else r !is CommandResult.Failed || r.reason.contains(PREHEAT_ALREADY_OFF)
+        if (ended && gp.active(app())) gp.stopCharging(app(), if (on) "pre-heating didn't start" else "pre-heating stopped")
+        r
     }
 
     /** Saves pre-heating schedules to the car (its 4 program slots), keeping pre-heating on/off as it is. */
