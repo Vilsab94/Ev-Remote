@@ -133,12 +133,12 @@ object ChargeWake {
         else plan(app, st)
     }
 
-    internal fun notify(ctx: Context, title: String, text: String) {
+    internal fun notify(ctx: Context, title: String, text: String, id: Int = NOTE_ID) {
         if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
         val n = NotificationCompat.Builder(ctx, LionFlowApp.CHANNEL).setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(no.lionflow.app.ui.l10n.tr(title)).setContentText(no.lionflow.app.ui.l10n.tr(text))
             .setStyle(NotificationCompat.BigTextStyle().bigText(no.lionflow.app.ui.l10n.tr(text))).setAutoCancel(true).build()
-        try { NotificationManagerCompat.from(ctx).notify(NOTE_ID, n) } catch (_: SecurityException) { }
+        try { NotificationManagerCompat.from(ctx).notify(id, n) } catch (_: SecurityException) { }
     }
 }
 

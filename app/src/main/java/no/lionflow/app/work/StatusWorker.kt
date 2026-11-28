@@ -64,7 +64,11 @@ class StatusWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx
                 notify(1, "Charging complete", "Battery at ${st.batteryPct?.toInt() ?: "?"} %.")
             if (s.notifyChargeStopped && prevCharging == "InProgress" && (st.chargingStatus == "Stopped" || st.chargingStatus == "Failure"))
                 notify(2, "Charging stopped", "Charging was interrupted at ${st.batteryPct?.toInt() ?: "?"} %.")
-            if (s.notifyPreheat && prev.optBoolean("precond") && !st.preheating)
+            // EV Remote: only right after it ended (the last check saw it on less than 20 min ago) and before driving off;
+            // the 30-min check used to say "should be warm" after the car had been driven.
+            val prevT = prev.optLong("t", 0L)
+            val stillParked = !st.moving && (st.odometerKm ?: -1.0).let { o -> val po = prev.optDouble("odo", -1.0); o < 0 || po < 0 || kotlin.math.abs(o - po) <= 0.05 }
+            if (s.notifyPreheat && prev.optBoolean("precond") && !st.preheating && now - prevT < 20 * 60_000L && stillParked)
                 notify(3, "Pre-heating finished", "Your car should be warm and ready.")
 
             // Only count as parked if the car isn't moving and hasn't driven since the last check.
@@ -89,6 +93,7 @@ class StatusWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx
             app.settings.notifySnapshot = JSONObject()
                 .put("charging", st.chargingStatus ?: "")
                 .put("precond", st.preheating)
+                .put("t", now)   // EV Remote
                 .put("unlockedSince", unlockedSince)
                 .put("odo", odo)
                 .put("unlockedNotified", unlockedSince > 0 && (prev.optBoolean("unlockedNotified") || now - unlockedSince > 10 * 60_000))

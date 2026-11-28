@@ -198,7 +198,11 @@ object GridPreheat {
             st = read() ?: st
             if (st != null && !st.plugged) { p.edit().putBoolean("active", false).apply(); log(app, "ended (unplugged)"); return }
             val fresh = st?.updatedAtMillis?.let { it >= p.getLong("startedAt", 0L) + 60_000L } == true
-            if (st != null && fresh && !st.preconditioningOn) { stopCharging(app, "pre-heating ended"); return }
+            if (st != null && fresh && !st.preconditioningOn) {
+                stopCharging(app, "pre-heating ended")
+                if (app.settings.value.notifyPreheat) ChargeWake.notify(app, "Pre-heating finished", "Your car should be warm and ready.", 3)
+                return
+            }
             val next = minOf(System.currentTimeMillis() + CHECK_MIN * 60_000L, hardEnd)
             alarm(app, REQ_END, next)
             log(app, (if (!fresh) "no new report from the car" + (if (answered == false) " (no answer)" else "") else "still pre-heating") +
