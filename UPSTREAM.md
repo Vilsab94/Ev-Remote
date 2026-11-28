@@ -92,6 +92,8 @@ customised for an Opel Mokka-e. All credit for the original app goes to its auth
   follow-up only runs without remote control. Manifest: SCHEDULE_EXACT_ALARM, REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
   FOREGROUND_SERVICE_DATA_SYNC, the receiver, and WorkManager's SystemForegroundService with type dataSync (expedited
   work on Android 8–11). Battery optimization dialog once (Root.kt, `askedBatteryOpt`).
+  RemoteControl's MQTT callback keeps a wake-up id after 903 (and calls the waiter there): upstream drops it at 903, so
+  the car's answer "0" is logged as "? → 0" and `wakeAndWait()` timed out. Unanswered wake-ups retry only while charging.
 - Command log: `RemoteControl.logFile` (filesDir/command_log.txt, `LOG_MAX` = 500 lines, "dd.MM HH:mm:ss").
 - Pre-heat: `PreheatLowBatteryNote()` (ChargingClimate.kt) on the Home climate tile, Climate screen and
   PreheatSchedules; `AppViewModel.preheatLowBattery()` adds the reason to a failed Pre-heat.

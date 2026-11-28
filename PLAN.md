@@ -26,6 +26,9 @@ Findings from testing LionFlow with this car (Nov 2026):
    → Done as `work/ChargeWake.kt`: exact alarm ~3 min after nextDelayedTime; while charging wake + read every
      ~15 min (~5 min within 8 % of the limit) and run the charge limit; stop when finished/stopped/unplugged;
      never wake an unplugged car; 3 unanswered wakes → stop + notification; battery optimization asked once.
+   2026-11-28 first night: stopped at 85 %, not 80 %. Every wake-up was answered (a car report each time), but the
+     answer after 903 was lost ("? → 0"), so each counted as unanswered and the wake-ups stopped after 3; the limit
+     was checked 18 min late. Fixed (903 = awake, the id kept for the answer; no retries once not charging).
 3. ✅ **Done (2026-11-26/27, not yet tested on the car)** – **Car position missing**: status has no `lastPosition`
    at all (privacy state None).
    → Also call `/connectedcar/v4/user/vehicles/{id}/lastPosition` and use it.
