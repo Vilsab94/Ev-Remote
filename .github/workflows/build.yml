@@ -46,7 +46,13 @@ jobs:
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
           SIGNING_KEY_ALIAS: evremote
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
-        run: gradle :app:assembleRelease --stacktrace --no-daemon
+        # Compile errors also become annotations, readable without signing in to see the log.
+        run: |
+          set -o pipefail
+          gradle :app:assembleRelease --stacktrace --no-daemon 2>&1 | tee build.log || {
+            grep -E "^e: |What went wrong" -A1 build.log | grep -v "^--$" | head -30 | sed "s/^/::error::/"
+            exit 1
+          }
 
       - name: Rename APK
         run: |
