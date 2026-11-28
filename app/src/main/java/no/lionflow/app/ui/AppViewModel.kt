@@ -981,7 +981,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** EV Remote: use grid power for the car's pre-heating schedules (on by default). */
     var gridPreheatSchedules by androidx.compose.runtime.mutableStateOf(no.lionflow.app.work.GridPreheat.forSchedules(app()))
         private set
-    fun setGridPreheatSchedules(on: Boolean) {
+    fun changeGridPreheatSchedules(on: Boolean) {
         gridPreheatSchedules = on
         no.lionflow.app.work.GridPreheat.setForSchedules(app(), on)
         _ui.value.status?.let { st -> try { no.lionflow.app.work.GridPreheat.plan(app(), st) } catch (_: Exception) { } }
