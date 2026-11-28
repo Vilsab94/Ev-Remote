@@ -100,6 +100,9 @@ customised for an Opel Mokka-e. All credit for the original app goes to its auth
   (`askGridPreheat`, dialog in Root.kt) and `preconditioningSend(on, grid)` sends charging first / stops it after.
   `ChargeLimit.delayTime()` is internal; `overLimit()` adds `OVER_LIMIT` while active; `ChargeWindow.check()` doesn't stop it.
   Toggle at the end of the PreheatSchedules card.
+- Home (phone): `HomeLayout.PHONE` has "climate" after "battery" (`ClimateCard` in Home.kt, full width; `withClimate()`
+  puts it after the battery in a saved order); "parked" is gone and "tripsClimate" draws `ParkedTile` (HomeCards.kt) +
+  `TripsTile`. Upstream `ClimateTile` replaced by `ClimateCard`; `ParkedCard` is no longer used.
 - Command log: `RemoteControl.logFile` (filesDir/command_log.txt, `LOG_MAX` = 500 lines, "dd.MM HH:mm:ss").
 - Pre-heat: `PreheatLowBatteryNote()` (ChargingClimate.kt) on the Home climate tile, Climate screen and
   PreheatSchedules; `AppViewModel.preheatLowBattery()` adds the reason to a failed Pre-heat.
