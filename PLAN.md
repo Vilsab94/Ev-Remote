@@ -66,10 +66,12 @@ Findings from testing LionFlow with this car (Nov 2026):
    error when Pre-heat fails in that state.
 10. ✅ **Done (2026-11-28, not yet tested on the car)** – **Pre-heating took power from the battery while plugged in**:
    after the stop at the charge limit (delayed start) the car isn't charging, so it heats from the battery.
-   → `work/GridPreheat.kt`: for the car's pre-heating schedules, charging on from 30 min before the set time to 10 min
-     after (+10 min twice while still pre-heating), then back to the delayed start; "Start pre-heating now" asks
-     "Pre-heat on grid power?"; Stop pre-heating also stops it. Charge limit +5 % meanwhile. Switch on the schedules card.
-     To check: does "immediate" restart charging after the stop at the limit, and does the heater then run on the grid?
+   → `work/GridPreheat.kt`: for the car's pre-heating schedules, charging on from 30 min before the set time;
+     "Start pre-heating now" asks "Pre-heat on grid power?". Then the car is woken and read every 5 min (schedules: from
+     the set time); once it reports pre-heating off, back to the delayed start and no more checks (at the latest 60 min /
+     set time + 30 min). Stop pre-heating also stops it. Charge limit +5 % meanwhile. Switch on the schedules card.
+     To check: does "immediate" restart charging after the stop at the limit, does the heater then run on the grid,
+     and does the plugged-in car report pre-heating on (Enabled) while it runs? If it says Disabled, charging stops early.
    12 V battery measured 11.96 V at rest, 14.4 V with ignition on (DC/DC fine, battery low or aging).
 
 Upstream: https://github.com/thocubeat/lionflow – see UPSTREAM.md for the last synced commit.

@@ -95,7 +95,8 @@ customised for an Opel Mokka-e. All credit for the original app goes to its auth
   RemoteControl's MQTT callback keeps a wake-up id after 903 (and calls the waiter there): upstream drops it at 903, so
   the car's answer "0" is logged as "? → 0" and `wakeAndWait()` timed out. Unanswered wake-ups retry only while charging.
 - Pre-heat on grid power: `work/GridPreheat.kt` (`plan()` next to `ChargeWake.plan()`; exact alarms → `GridPreheatReceiver`
-  → `GridPreheatWorker`; setting `gridPreheatSchedules` raw, on unless "0"). `AppViewModel.preconditioning()` asks
+  → `GridPreheatWorker`, which wakes + reads every 5 min until pre-heating is off; `ChargeWake.plan()` skips while
+  `ownActive()`; setting `gridPreheatSchedules` raw, on unless "0"). `AppViewModel.preconditioning()` asks
   (`askGridPreheat`, dialog in Root.kt) and `preconditioningSend(on, grid)` sends charging first / stops it after.
   `ChargeLimit.delayTime()` is internal; `overLimit()` adds `OVER_LIMIT` while active; `ChargeWindow.check()` doesn't stop it.
   Toggle at the end of the PreheatSchedules card.
