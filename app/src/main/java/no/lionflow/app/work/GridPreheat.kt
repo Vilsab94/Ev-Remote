@@ -110,7 +110,7 @@ object GridPreheat {
         val startAt = next - LEAD_MIN * 60_000L
         alarm(app, REQ_START, startAt)
         p.edit().putLong("startAt", startAt).putLong("schedAt", next).apply()
-        log("next schedule ${hm(next)}: charging from ${hm(startAt)} if plugged in and not charging")
+        log(app, "next schedule ${hm(next)}: charging from ${hm(startAt)} if plugged in and not charging")
     }
 
     // ---- charging on / off ----
@@ -119,11 +119,11 @@ object GridPreheat {
     suspend fun startCharging(app: LionFlowApp, st: VehicleStatus, firstCheck: Long, hardEnd: Long, why: String): CommandResult {
         val (h, m) = ChargeLimit.delayTime(st)
         val r = app.remote.charging(true, h, m)
-        if (r is CommandResult.Failed) { log("charging on ($why) → ${r.reason}"); return r }
+        if (r is CommandResult.Failed) { log(app, "charging on ($why) → ${r.reason}"); return r }
         prefs(app).edit().putBoolean("active", true).putBoolean("own", true).putLong("startedAt", System.currentTimeMillis())
             .putLong("hardEnd", hardEnd).putInt("h", h).putInt("m", m).apply()
         alarm(app, REQ_END, firstCheck)
-        log("charging on ($why) until pre-heating ends, checked every $CHECK_MIN min from ${hm(firstCheck)}, " +
+        log(app, "charging on ($why) until pre-heating ends, checked every $CHECK_MIN min from ${hm(firstCheck)}, " +
             "at the latest ${hm(hardEnd)}; delayed start %02d:%02d afterwards".format(h, m))
         return r
     }
@@ -142,9 +142,9 @@ object GridPreheat {
         val h = p.getInt("h", 3); val m = p.getInt("m", 0)
         p.edit().putBoolean("active", false).apply()
         cancel(app, REQ_END)
-        if (!own) { log("ended ($why)"); return }
+        if (!own) { log(app, "ended ($why)"); return }
         val r = app.remote.charging(false, h, m)
-        log("charging off ($why), delayed start %02d:%02d → ${if (r is CommandResult.Failed) r.reason else "sent"}".format(h, m))
+        log(app, "charging off ($why), delayed start %02d:%02d → ${if (r is CommandResult.Failed) r.reason else "sent"}".format(h, m))
     }
 
     /** Schedule alarm: charging on if the car is plugged in and not charging (only the server's status is read). */
@@ -155,19 +155,19 @@ object GridPreheat {
         if (!forSchedules(app) || !app.api.isSignedIn || !app.remote.isSetUp) return
         val vehicle = app.api.cachedVehicle() ?: return
         val st = try { no.lionflow.app.model.ChargePower.record(app.api.readStatus(vehicle)) } catch (e: Exception) {
-            log("status read failed (${e.javaClass.simpleName})"); null
+            log(app, "status read failed (${e.javaClass.simpleName})"); null
         } ?: return
         try {
             val set = if (sched > 0) sched else System.currentTimeMillis() + LEAD_MIN * 60_000L
             val hardEnd = set + MAX_AFTER_MIN * 60_000L
             when {
-                !st.plugged -> log("schedule ${hm(set)}: not plugged in, pre-heats from the battery")
+                !st.plugged -> log(app, "schedule ${hm(set)}: not plugged in, pre-heats from the battery")
                 st.isCharging -> {
                     // Charging anyway: only the charge limit's margin, until the latest end (no wake-ups of its own).
                     prefs(app).edit().putBoolean("active", true).putBoolean("own", false).putLong("startedAt", System.currentTimeMillis())
                         .putLong("hardEnd", hardEnd).apply()
                     alarm(app, REQ_END, hardEnd)
-                    log("schedule ${hm(set)}: already charging, the charge limit allows $OVER_LIMIT % more until ${hm(hardEnd)}")
+                    log(app, "schedule ${hm(set)}: already charging, the charge limit allows $OVER_LIMIT % more until ${hm(hardEnd)}")
                 }
                 // Pre-heating may already run before the set time, so the checks start at it.
                 else -> startCharging(app, st, set, hardEnd, "schedule ${hm(set)}")
@@ -193,15 +193,15 @@ object GridPreheat {
             val vehicle = app.api.cachedVehicle()
             suspend fun read() = vehicle?.let { v -> try { no.lionflow.app.model.ChargePower.record(app.api.readStatus(v)) } catch (_: Exception) { null } }
             var st = read()
-            if (st != null && !st.plugged) { p.edit().putBoolean("active", false).apply(); log("ended (unplugged)"); return }
+            if (st != null && !st.plugged) { p.edit().putBoolean("active", false).apply(); log(app, "ended (unplugged)"); return }
             val answered = if (vehicle != null) Waker.wakeAndWait(app) else null
             st = read() ?: st
-            if (st != null && !st.plugged) { p.edit().putBoolean("active", false).apply(); log("ended (unplugged)"); return }
+            if (st != null && !st.plugged) { p.edit().putBoolean("active", false).apply(); log(app, "ended (unplugged)"); return }
             val fresh = st?.updatedAtMillis?.let { it >= p.getLong("startedAt", 0L) + 60_000L } == true
             if (st != null && fresh && !st.preconditioningOn) { stopCharging(app, "pre-heating ended"); return }
             val next = minOf(System.currentTimeMillis() + CHECK_MIN * 60_000L, hardEnd)
             alarm(app, REQ_END, next)
-            log((if (!fresh) "no new report from the car" + (if (answered == false) " (no answer)" else "") else "still pre-heating") +
+            log(app, (if (!fresh) "no new report from the car" + (if (answered == false) " (no answer)" else "") else "still pre-heating") +
                 ", next check ${hm(next)}")
         } finally {
             try { app.remote.disconnect() } catch (_: Exception) { }
