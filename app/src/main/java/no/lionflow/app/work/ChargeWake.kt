@@ -125,8 +125,9 @@ object ChargeWake {
         if (!st.preconditioningOn) try {
             ChargeLimit.check(app, st)?.let { notify(app, "Charge limit", it) }
         } catch (_: Exception) { }
-        // Unanswered: the status may be old, so keep trying on the same rhythm instead of trusting it.
-        if (answered == false && st.plugged) at(app, System.currentTimeMillis() + 15 * 60_000L, "retry, the car didn't answer")
+        // Unanswered: the status may be old, so keep trying on the same rhythm instead of trusting it – only while it
+        // still says charging (seen 2026-11-28: stopped at 85 %, yet woken 3 more times).
+        if (answered == false && st.plugged && st.isCharging) at(app, System.currentTimeMillis() + 15 * 60_000L, "retry, the car didn't answer")
         else plan(app, st)
     }
 

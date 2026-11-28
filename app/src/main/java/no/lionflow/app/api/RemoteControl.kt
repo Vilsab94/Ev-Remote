@@ -177,6 +177,9 @@ class RemoteControl(private val api: StellantisApi, private val secure: SecureSt
                 // A pre-wake: the car is reachable once it's forwarded (903) or finished.
                 if (id in wakeIds) {
                     if (code == "903" || code !in IN_PROGRESS) wakeDone?.complete(Unit)
+                    // EV Remote: 903 (delivered) is followed by the car's own answer (0) with the same id, so keep the id
+                    // until then; dropping it at 903 logged that answer as "? → 0" and the charging wake-ups never saw it.
+                    if (code == "903") { noteWakeAnswer(code); wakeWaiters[id]?.let { cb -> wakeWaiters[id] = {}; cb() }; return }
                     if (code !in IN_PROGRESS) {
                         noteWakeAnswer(code)
                         wakeIds.remove(id)
