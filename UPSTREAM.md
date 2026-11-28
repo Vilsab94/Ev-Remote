@@ -103,6 +103,8 @@ customised for an Opel Mokka-e. All credit for the original app goes to its auth
 - Home (phone): `HomeLayout.PHONE` has "climate" after "battery" (`ClimateCard` in Home.kt, full width; `withClimate()`
   puts it after the battery in a saved order); "parked" is gone and "tripsClimate" draws `ParkedTile` (HomeCards.kt) +
   `TripsTile`. Upstream `ClimateTile` replaced by `ClimateCard`; `ParkedCard` is no longer used.
+- Route recording: a `rec-*.part` left by a recording that was cut off (app updated / killed while driving) is kept up
+  to its last point by `RouteService.saveLeftovers()` on the next start and on Bluetooth disconnect ("cut off earlier").
 - "Pre-heating finished" (StatusWorker): only when the last check (snapshot "t") saw it on under 20 min ago and the car
   hasn't moved (odometer); GridPreheat also sends it (id 3) when its 5-min checks see pre-heating end.
 - Command log: `RemoteControl.logFile` (filesDir/command_log.txt, `LOG_MAX` = 500 lines, "dd.MM HH:mm:ss").

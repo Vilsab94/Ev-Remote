@@ -39,7 +39,7 @@ class CarBluetoothReceiver : BroadcastReceiver() {
         if (dev?.address != s.routeBtAddr) return
         when (intent.action) {
             BluetoothDevice.ACTION_ACL_CONNECTED -> { RouteService.log(ctx, "route: car Bluetooth connected"); RouteService.start(ctx) }
-            BluetoothDevice.ACTION_ACL_DISCONNECTED -> { RouteService.log(ctx, "route: car Bluetooth disconnected"); RouteService.stop(ctx) }
+            BluetoothDevice.ACTION_ACL_DISCONNECTED -> { RouteService.log(ctx, "route: car Bluetooth disconnected"); RouteService.stop(ctx); RouteService.saveLeftovers(ctx) }
         }
     }
 }
@@ -64,8 +64,9 @@ class RouteService : Service(), LocationListener {
             stopSelf(); return START_NOT_STICKY
         }
         if (!hasLocation(this)) { log(this, "route: not recorded, no location permission"); stopSelf(); return START_NOT_STICKY }
+        saveLeftovers(this)   // EV Remote: a recording cut off earlier (app updated or killed while driving)
         startMillis = System.currentTimeMillis()
-        file = File(Routes.dir(this), "rec-$startMillis.part").also { it.writeText("") }
+        file = File(Routes.dir(this), "rec-$startMillis.part").also { it.writeText(""); current = it }
         listen()
         log(this, "route: recording" + if (hasBackgroundLocation(this)) "" else " (location not allowed all the time: may stop when the screen is off)")
         return START_STICKY
@@ -91,17 +92,12 @@ class RouteService : Service(), LocationListener {
     override fun onProviderEnabled(provider: String) {}
     override fun onProviderDisabled(provider: String) {}
 
-    /** Keeps the route if it's a real drive, under a name that holds start, end and distance. */
     private fun finish() {
         try { getSystemService(LocationManager::class.java).removeUpdates(this) } catch (_: Exception) {}
         val f = file ?: return
         file = null
-        val pts = Routes.points(f)
-        val km = Routes.distanceKm(pts)
-        if (pts.size >= 3 && km >= 0.3) {
-            f.renameTo(File(Routes.dir(this), "${pts.first().third}-${pts.last().third}-${String.format(java.util.Locale.US, "%.2f", km)}.csv"))
-            log(this, "route: saved, ${pts.size} points, " + String.format(java.util.Locale.US, "%.1f km", km))
-        } else { f.delete(); log(this, "route: not kept, ${pts.size} points, " + String.format(java.util.Locale.US, "%.1f km", km) + " (under 3 points or 0.3 km)") }
+        keep(this, f, "")
+        current = null
     }
 
     override fun onDestroy() {
@@ -143,6 +139,29 @@ class RouteService : Service(), LocationListener {
                 log(ctx, "route: Android refused to start recording in the background (${e.javaClass.simpleName}), tap the notification")
                 askToStart(ctx)
             }
+        }
+
+        /** The file the running recording writes to (never touched by [saveLeftovers]). */
+        @Volatile private var current: File? = null
+
+        /** Keeps the route if it's a real drive, under a name that holds start, end and distance. */
+        private fun keep(ctx: Context, f: File, note: String) {
+            val pts = Routes.points(f)
+            val km = Routes.distanceKm(pts)
+            if (pts.size >= 3 && km >= 0.3) {
+                f.renameTo(File(Routes.dir(ctx), "${pts.first().third}-${pts.last().third}-${String.format(java.util.Locale.US, "%.2f", km)}.csv"))
+                log(ctx, "route: saved$note, ${pts.size} points, " + String.format(java.util.Locale.US, "%.1f km", km))
+            } else { f.delete(); log(ctx, "route: not kept$note, ${pts.size} points, " + String.format(java.util.Locale.US, "%.1f km", km) + " (under 3 points or 0.3 km)") }
+        }
+
+        /**
+         * EV Remote: recordings cut off without being saved (the app was updated or Android stopped it while driving)
+         * are kept up to their last point, on the next Bluetooth connect or disconnect.
+         */
+        fun saveLeftovers(ctx: Context) {
+            val cur = current
+            Routes.dir(ctx).listFiles { f -> f.name.startsWith("rec-") && f.name.endsWith(".part") }.orEmpty()
+                .filter { it != cur }.forEach { f -> try { keep(ctx, f, " (cut off earlier)") } catch (_: Exception) { } }
         }
 
         fun stop(ctx: Context) {
