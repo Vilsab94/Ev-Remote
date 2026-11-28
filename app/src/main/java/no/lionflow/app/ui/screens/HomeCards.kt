@@ -196,6 +196,38 @@ internal fun ParkedCard(vm: AppViewModel, ui: UiState) {
     }
 }
 
+/** EV Remote: [ParkedCard] at half the width, next to Trips on Home. Tap = map, button = walking directions. */
+@Composable
+internal fun ParkedTile(modifier: Modifier, vm: AppViewModel, ui: UiState) {
+    val st = ui.status ?: return
+    val lat = st.lat ?: return
+    val lon = st.lon ?: return
+    val c = LocalLf.current
+    val platform = LocalPlatform.current
+    val place by vm.parkedAt.collectAsState()
+    LaunchedEffect(lat, lon, st.moving) { if (!st.moving) vm.updateParkedPlace(lat, lon) }
+    val where = place?.removePrefix("@")
+    LfCard(modifier, radius = 24.dp, padding = PaddingValues(16.dp), onClick = { vm.setTab(Tab.Map) }) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            LfIcon(LfIcons.Pin, c.text, 22.dp)
+            Text(if (st.moving) "Driving" else "Parked", style = Type.stat.copy(fontSize = 18.sp), color = c.text, modifier = Modifier.weight(1f))
+            LfIcon(LfIcons.Chevron, c.muted, 18.dp)
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(where ?: "Show on map", style = Type.label.copy(fontSize = 17.sp), color = c.text, maxLines = 3)
+            Text((when (st.positionSource) {
+                "trip" -> "Where the last trip ended"
+                "phone" -> "Where the phone left the car"
+                else -> "Where the car last reported"
+            }) + positionAge(st), style = Type.tiny, color = c.muted, maxLines = 3)
+        }
+        Spacer(Modifier.weight(1f, fill = false))
+        if (!st.moving) PrimaryButton("Walk", Modifier.fillMaxWidth()) {
+            platform.openUrl(String.format(Locale.US, "https://www.google.com/maps/dir/?api=1&destination=%.6f,%.6f&travelmode=walking", lat, lon))
+        }
+    }
+}
+
 /** Petrol, diesel and hybrid cars: distance, fuel and what it cost so far this month. */
 @Composable
 internal fun FuelMonthCard(vm: AppViewModel, ui: UiState, s: AppSettings) {

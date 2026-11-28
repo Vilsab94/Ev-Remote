@@ -87,7 +87,7 @@ fun HomeScreen(vm: AppViewModel, ui: UiState, s: AppSettings, wide: Boolean, exp
                     for (id in no.lionflow.app.data.HomeLayout.phoneCards(s)) {
                         when (id) {
                             "warnings" -> WarningsCard(ui)
-                            "parked" -> ParkedCard(vm, ui)
+                            "climate" -> ClimateCard(vm, ui, s)   // EV Remote
                             "tripsClimate" -> TripsClimateRow(vm, ui, s)
                             "service" -> ServiceCard(vm, ui, s)
                             "fuel" -> FuelMonthCard(vm, ui, s)
@@ -120,9 +120,9 @@ private fun HomePhone(vm: AppViewModel, ui: UiState, s: AppSettings) {
                 when (id) {
                     "warnings" -> WarningsCard(ui)
                     "battery" -> BatteryCard(vm, ui, s)
+                    "climate" -> ClimateCard(vm, ui, s)   // EV Remote
                     "lock" -> LockLine(ui)
                     "actions" -> QuickActions(vm, ui)
-                    "parked" -> ParkedCard(vm, ui)
                     "tripsClimate" -> TripsClimateRow(vm, ui, s)
                     "service" -> ServiceCard(vm, ui, s)
                     "fuel" -> FuelMonthCard(vm, ui, s)
@@ -403,14 +403,18 @@ private fun QuickActions(vm: AppViewModel, ui: UiState) {
     }
 }
 
-/** Trips and Climate side by side, each half the width. Cars without climate get the full-width trips card. */
+/**
+ * EV Remote: where the car is parked and Trips side by side, each half the width (climate has its own card under the
+ * battery). Without a position: the full-width trips card.
+ */
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun TripsClimateRow(vm: AppViewModel, ui: UiState, s: AppSettings) {
-    if (!no.lionflow.app.ui.Caps.climate(ui.status)) { TripsCard(vm, ui, s); return }
+    val st = ui.status
+    if (st?.lat == null || st.lon == null) { TripsCard(vm, ui, s); return }
     Row(Modifier.fillMaxWidth().height(androidx.compose.foundation.layout.IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        ParkedTile(Modifier.weight(1f).fillMaxHeight(), vm, ui)
         TripsTile(Modifier.weight(1f).fillMaxHeight(), vm, ui, s)
-        ClimateTile(Modifier.weight(1f).fillMaxHeight(), vm, ui, s)
     }
 }
 
@@ -444,29 +448,34 @@ private fun TripsTile(modifier: Modifier, vm: AppViewModel, ui: UiState, s: AppS
     }
 }
 
+/** EV Remote: climate as big as the battery card, right under it, so Pre-heat needs no scrolling. */
 @Composable
-private fun ClimateTile(modifier: Modifier, vm: AppViewModel, ui: UiState, s: AppSettings) {
+private fun ClimateCard(vm: AppViewModel, ui: UiState, s: AppSettings) {
+    if (!no.lionflow.app.ui.Caps.climate(ui.status)) return
     val c = LocalLf.current
     val st = ui.status
     val confirm = LocalConfirm.current
     val on = st?.preheating == true
-    LfCard(modifier, radius = 24.dp, padding = androidx.compose.foundation.layout.PaddingValues(16.dp), onClick = { vm.setTab(Tab.Climate) }) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            LfIcon(LfIcons.Thermo, if (on) c.orangeInk else c.text, 22.dp)
-            Text("Climate", style = Type.stat.copy(fontSize = 18.sp), color = c.text, modifier = Modifier.weight(1f))
-            LfIcon(LfIcons.Chevron, c.muted, 18.dp)
+    LfCard(onClick = { vm.setTab(Tab.Climate) }, radius = 28.dp, padding = androidx.compose.foundation.layout.PaddingValues(22.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    LfIcon(LfIcons.Thermo, if (on) c.orangeInk else c.muted, 20.dp)
+                    Text("Climate", style = Type.body, color = c.muted)
+                }
+                Text(if (on) "Pre-heating" else "Off", style = Type.big.copy(fontSize = if (on) 36.sp else 52.sp, fontWeight = FontWeight.Bold), color = c.text, maxLines = 1)
+            }
+            if (vm.remoteReady) no.lionflow.app.ui.components.PrimaryButton(
+                if (ui.commandInProgress?.contains("heating") == true) "Sending…" else if (on) "Stop" else "Pre-heat",
+                Modifier.width(150.dp), color = c.orange, enabled = st != null && ui.commandInProgress == null,
+            ) {
+                confirm(if (!on) "Start pre-heating" else "Stop pre-heating") { vm.preconditioning(!on) }
+            }
         }
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(if (on) "Pre-heating" else "Off", style = Type.display.copy(fontSize = 28.sp, fontWeight = FontWeight.Bold), color = c.text)
-            Text("Outside ${fmtTemp(st?.outsideTempC ?: ui.weather?.tempC, s)}", style = Type.small, color = c.muted)
-            nextSchedule(st)?.let { Text("Next: $it", style = Type.tiny, color = c.muted) }
-            PreheatLowBatteryNote(vm, st)   // EV Remote
-            if (on) PreheatGuessNote(st)   // EV Remote
-        }
-        androidx.compose.foundation.layout.Spacer(Modifier.weight(1f, fill = false))
-        if (vm.remoteReady) no.lionflow.app.ui.components.PrimaryButton(if (on) "Stop" else "Pre-heat", Modifier.fillMaxWidth(), color = c.orange) {
-            confirm(if (!on) "Start pre-heating" else "Stop pre-heating") { vm.preconditioning(!on) }
-        }
+        Text("Outside ${fmtTemp(st?.outsideTempC ?: ui.weather?.tempC, s)}" + (nextSchedule(st)?.let { " · Next: $it" } ?: ""),
+            style = Type.body, color = c.text2)
+        PreheatLowBatteryNote(vm, st)
+        if (on) PreheatGuessNote(st)
     }
 }
 

@@ -11,10 +11,11 @@ object HomeLayout {
     val PHONE = listOf(
         Item("warnings", "Warnings from the car", "Only there when the car reports one"),
         Item("battery", "Battery or fuel level"),
+        // EV Remote: climate as a full-width card under the battery; "tripsClimate" is now where it is parked + trips.
+        Item("climate", "Climate", "Pre-heating, outside temperature, next schedule"),
         Item("lock", "Locked or unlocked"),
         Item("actions", "Lock, lights, horn and Find car"),
-        Item("parked", "Where the car is parked", "Address, which way it faces, walking directions"),
-        Item("tripsClimate", "Trips and climate"),
+        Item("tripsClimate", "Where the car is parked and trips", "Address, walking directions, last 7 days"),
         Item("service", "Next service"),
         Item("fuel", "Fuel this month", "Distance, litres and cost", needs = "fuel"),
         Item("charging", "Charging", "State, speed and limit", needs = "battery"),
@@ -56,7 +57,7 @@ object HomeLayout {
 
     /** [all] in the user's [order]; parts the order doesn't mention keep their usual place at the end. */
     fun ordered(all: List<Item>, order: String): List<Item> {
-        val o = ids(order)
+        val o = ids(if (all === PHONE) withClimate(order) else order)
         return all.sortedBy { item -> o.indexOf(item.id).let { if (it < 0) 1000 + all.indexOf(item) else it } }
     }
 
@@ -64,6 +65,14 @@ object HomeLayout {
     fun phoneCards(s: AppSettings): List<String> {
         val h = hidden(s.homeHidden)
         return ordered(PHONE, s.homeOrder).map { it.id }.filter { it !in h }
+    }
+
+    /** EV Remote: an order saved before the climate card existed gets it right after the battery. */
+    fun withClimate(order: String): String {
+        val o = ids(order)
+        if (o.isEmpty() || "climate" in o) return order
+        val i = o.indexOf("battery")
+        return (o.take(i + 1) + "climate" + o.drop(i + 1)).joinToString(",")
     }
 
     /** Moves [id] one step up or down among the parts that apply to this car, and returns the new order. */
